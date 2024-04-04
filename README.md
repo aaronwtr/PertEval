@@ -59,7 +59,7 @@ pip install -r requirements.txt
 ```
 
 #### Conda
-{TODO: implement this}
+{TODO: implement conda install}
 ```bash
 # clone project
 git clone https://github.com/YourGithubName/your-repo-name
