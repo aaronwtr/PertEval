@@ -1,13 +1,20 @@
+import numpy as np
+
 from typing import Any, Dict, Tuple
 
 import torch
 from lightning import LightningModule
+from torch_geometric.data import Batch
 from torchmetrics import MaxMetric, MeanMetric
-from torchmetrics.classification.accuracy import Accuracy
+from torchmetrics.regression import SpearmanCorrCoef
+
+from .components.gears import GEARSNetwork
+from gears.utils import loss_fct
+from gears import PertData
 
 
-class MNISTLitModule(LightningModule):
-    """Example of a `LightningModule` for MNIST classification.
+class GEARSLitModule(LightningModule):
+    """LightningModule wrapper for GEARS.
 
     A `LightningModule` implements 8 key methods:
 
@@ -38,19 +45,17 @@ class MNISTLitModule(LightningModule):
     Docs:
         https://lightning.ai/docs/pytorch/latest/common/lightning_module.html
     """
-
     def __init__(
-        self,
-        net: torch.nn.Module,
-        optimizer: torch.optim.Optimizer,
-        scheduler: torch.optim.lr_scheduler,
-        compile: bool,
-    ) -> None:
-        """Initialize a `MNISTLitModule`.
+                self,
+                net: GEARSNetwork,
+                pertmodule: PertData,
+                optimizer: Any,
+                scheduler: Any,
+                compile: bool = False
+        ) -> None:
+        """Initialize a `GEARSLitModule`.
 
         :param net: The model to train.
-        :param optimizer: The optimizer to use for training.
-        :param scheduler: The learning rate scheduler to use for training.
         """
         super().__init__()
 
@@ -61,12 +66,22 @@ class MNISTLitModule(LightningModule):
         self.net = net
 
         # loss function
-        self.criterion = torch.nn.CrossEntropyLoss()
+        self.criterion = loss_fct
+
+        adata = pertmodule.pert_data.adata
+        pert_full_id2pert = dict(adata.obs[['condition_name', 'condition']].values)
+        self.dict_filter = {pert_full_id2pert[i]: j for i, j in adata.uns['non_zeros_gene_idx'].items()
+                            if i in pert_full_id2pert}
+
+        self.pert_list = pertmodule.pert_list
+
+        self.ctrl_expression = torch.tensor(np.mean(adata.X[adata.obs.condition == 'ctrl'], axis=0)).reshape(-1, )
 
         # metric objects for calculating and averaging accuracy across batches
-        self.train_acc = Accuracy(task="multiclass", num_classes=10)
-        self.val_acc = Accuracy(task="multiclass", num_classes=10)
-        self.test_acc = Accuracy(task="multiclass", num_classes=10)
+        num_genes = pertmodule.num_genes
+        self.train_spr = SpearmanCorrCoef(num_outputs=num_genes)
+        self.val_spr = SpearmanCorrCoef(num_outputs=num_genes)
+        self.test_spr = SpearmanCorrCoef(num_outputs=num_genes)
 
         # for averaging loss across batches
         self.train_loss = MeanMetric()
@@ -74,26 +89,28 @@ class MNISTLitModule(LightningModule):
         self.test_loss = MeanMetric()
 
         # for tracking best so far validation accuracy
-        self.val_acc_best = MaxMetric()
+        self.val_spr_best = MaxMetric()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        self.net.model_initialize(pertmodule)
+
+    def forward(self, batch: Batch) -> torch.Tensor:
         """Perform a forward pass through the model `self.net`.
 
-        :param x: A tensor of images.
-        :return: A tensor of logits.
+        :param batch: A PyG Batch object containing a subgraph passed to the model for training.
+        :return: A tensor of gene-level RNA expression.
         """
-        return self.net(x)
+        return self.net(batch)
 
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
         # by default lightning executes validation step sanity checks before training starts,
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
-        self.val_acc.reset()
-        self.val_acc_best.reset()
+        self.val_spr.reset()
+        self.val_spr_best.reset()
 
     def model_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor]
+            self, batch: Batch
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Perform a single model step on a batch of data.
 
@@ -104,14 +121,17 @@ class MNISTLitModule(LightningModule):
             - A tensor of predictions.
             - A tensor of target labels.
         """
-        x, y = batch
-        logits = self.forward(x)
-        loss = self.criterion(logits, y)
-        preds = torch.argmax(logits, dim=1)
+        y = batch.y
+
+        dir_lambda = self.net.direction_lambda
+        preds = self.forward(batch)
+
+        loss = self.criterion(preds, y, perts=batch.pert, ctrl=self.ctrl_expression, dict_filter=self.dict_filter,
+                              direction_lambda=dir_lambda)
         return loss, preds, y
 
     def training_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
+            self, batch: Batch, batch_idx: int
     ) -> torch.Tensor:
         """Perform a single training step on a batch of data from the training set.
 
@@ -121,21 +141,21 @@ class MNISTLitModule(LightningModule):
         :return: A tensor of losses between model predictions and targets.
         """
         loss, preds, targets = self.model_step(batch)
-
         # update and log metrics
         self.train_loss(loss)
-        self.train_acc(preds, targets)
-        self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train/acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True)
+        train_spr = self.train_spr(preds, targets)
+        avg_train_spr = torch.mean(train_spr)
+        self.log("train/loss", self.train_loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("train/avg_spearman", avg_train_spr, on_step=False, on_epoch=True, prog_bar=True)
 
         # return loss or backpropagation will fail
         return loss
 
     def on_train_epoch_end(self) -> None:
-        "Lightning hook that is called when a training epoch ends."
+        """Lightning hook that is called when a training epoch ends."""
         pass
 
-    def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> None:
+    def validation_step(self, batch: Batch, batch_idx: int) -> None:
         """Perform a single validation step on a batch of data from the validation set.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target
@@ -143,22 +163,21 @@ class MNISTLitModule(LightningModule):
         :param batch_idx: The index of the current batch.
         """
         loss, preds, targets = self.model_step(batch)
-
         # update and log metrics
         self.val_loss(loss)
-        self.val_acc(preds, targets)
+        val_spr = self.val_spr(preds, targets)
+        avg_val_spr = torch.mean(val_spr)
         self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val/acc", self.val_acc, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val/avg_spearman", avg_val_spr, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self) -> None:
-        "Lightning hook that is called when a validation epoch ends."
-        acc = self.val_acc.compute()  # get current val acc
-        self.val_acc_best(acc)  # update best so far val acc
-        # log `val_acc_best` as a value through `.compute()` method, instead of as a metric object
-        # otherwise metric would be reset by lightning after each epoch
-        self.log("val/acc_best", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
+        """Lightning hook that is called when a validation epoch ends."""
+        spr = self.val_spr.compute()
+        avg_val_spr = torch.mean(spr)
+        self.val_spr_best(avg_val_spr)
+        self.log("val/avg_spr_best", self.val_spr_best.compute(), sync_dist=True, prog_bar=True)
 
-    def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> None:
+    def test_step(self, batch: Batch, batch_idx: int) -> None:
         """Perform a single test step on a batch of data from the test set.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target
@@ -169,9 +188,10 @@ class MNISTLitModule(LightningModule):
 
         # update and log metrics
         self.test_loss(loss)
-        self.test_acc(preds, targets)
+        test_spr = self.test_spr(preds, targets)
+        avg_test_spr = torch.mean(test_spr)
         self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("test/spr", avg_test_spr, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
@@ -214,4 +234,4 @@ class MNISTLitModule(LightningModule):
 
 
 if __name__ == "__main__":
-    _ = MNISTLitModule(None, None, None, None)
+    _ = GEARSLitModule(None, None)

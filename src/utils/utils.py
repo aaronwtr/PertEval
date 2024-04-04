@@ -1,6 +1,11 @@
 import warnings
+import os
+import requests
+
+from tqdm import tqdm
 from importlib.util import find_spec
 from typing import Any, Callable, Dict, Optional, Tuple
+from zipfile import ZipFile
 
 from omegaconf import DictConfig
 
@@ -117,3 +122,41 @@ def get_metric_value(metric_dict: Dict[str, Any], metric_name: Optional[str]) ->
     log.info(f"Retrieved metric value! <{metric_name}={metric_value}>")
 
     return metric_value
+
+
+def dataverse_download(url: str = "", save_path: str = ""):
+    """Dataverse download helper with progress bar
+
+    :param url: the url of the dataset
+    :param save_path: the path to save the dataset
+    """
+
+    if os.path.exists(save_path):
+        print('Found local copy...')
+    else:
+        response = requests.get(url, stream=True)
+        total_size_in_bytes = int(response.headers.get('content-length', 0))
+        block_size = 1024
+        progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
+        with open(save_path, 'wb') as file:
+            for data in response.iter_content(block_size):
+                progress_bar.update(len(data))
+                file.write(data)
+        progress_bar.close()
+
+
+def zip_data_download_wrapper(url: str = "", zip_path: str = ""):
+    """Wrapper for zip file download
+
+    :param url: The url of the dataset.
+    :param zip_path: The path where the file is downloaded.
+    """
+    if os.path.exists(zip_path):
+        print('Found local copy of .zip file...')
+    else:
+        dataverse_download(url, zip_path + '.zip')
+        print('Extracting zip file...')
+        with ZipFile((zip_path + '.zip'), 'r') as z:
+            z.extractall(path=os.path.dirname(zip_path))
+        os.remove(zip_path + '.zip')
+        print("Done!")
