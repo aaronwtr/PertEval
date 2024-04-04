@@ -130,3 +130,6 @@ def main(cfg: DictConfig) -> Optional[float]:
 
 if __name__ == "__main__":
     main()
+    # TODO:
+    #  - port code to cluster, run on GPU
+    #  - implement wandb logging
