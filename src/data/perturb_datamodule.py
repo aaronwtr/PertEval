@@ -83,11 +83,6 @@ class PertDataModule(LightningDataModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        # data transformations
-        self.transforms = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
-
         self.data_path = os.path.join(data_dir, self.data_name)
 
         self.data_train: Optional[DataLoader] = None
