@@ -1,0 +1,40 @@
+_target_: src.models.gears_module.GEARSLitModule
+
+net:
+  _target_: src.models.components.gears.GEARSNetwork
+  hidden_size: 64
+  num_go_gnn_layers: 1
+  num_gene_gnn_layers: 1
+  decoder_hidden_size: 16
+  num_similar_genes_go_graph: 20
+  num_similar_genes_co_express_graph: 20
+  coexpress_threshold: 0.4
+  uncertainty: false
+  uncertainty_reg: 1
+  direction_lambda: 0.1
+  G_go:
+  G_go_weight:
+  G_coexpress:
+  G_coexpress_weight:
+  no_perturb: false
+  pert_emb_lambda: 0.2
+  num_genes: 5045
+  num_perts: 9853
+
+pertmodule:
+  _target_: src.data.perturb_datamodule.PertDataModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0005
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.StepLR
+  _partial_: true
+  step_size: 1
+  gamma: 0.5
+
+# compile model for faster training with pytorch 2.0
+compile: false

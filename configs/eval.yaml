@@ -2,8 +2,8 @@
 
 defaults:
   - _self_
-  - data: mnist # choose datamodule with `test_dataloader()` for evaluation
-  - model: mnist
+  - data: perturb # choose datamodule with `test_dataloader()` for evaluation
+  - model: gears
   - logger: null
   - trainer: default
   - paths: default
