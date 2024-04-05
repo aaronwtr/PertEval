@@ -113,7 +113,7 @@ python src/train.py trainer.max_epochs=20 data.batch_size=64
 Evals work similar by calling 
 
 ```bash
-python eval.py ckpt_path="/path/to/ckpt/name.ckpt"
+python src/eval.py ckpt_path="/path/to/ckpt/name.ckpt"
 ```
 
 ## Setting up Weights and Biases logging and experiment tracking
