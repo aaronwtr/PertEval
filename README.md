@@ -86,6 +86,8 @@ conda activate scb
 
 ## How to run
 
+The codebase has two entry points: `train.py` and `eval.py`. Which one you'll use depends on whether you want to train/fine-tune an existing model, or whether you have a pre-trained checkpoint you want to evaluate. 
+
 Train model with default configuration
 
 ```bash
@@ -106,6 +108,12 @@ You can override any parameter from command line like this
 
 ```bash
 python src/train.py trainer.max_epochs=20 data.batch_size=64
+```
+
+Evals work similar by calling 
+
+```bash
+python eval.py ckpt_path="/path/to/ckpt/name.ckpt"
 ```
 
 ## Setting up Weights and Biases logging and experiment tracking
