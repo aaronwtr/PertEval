@@ -1,6 +1,6 @@
 <div align="center">
 
-# scBench: Benchmarking single-cell models across biological tasks 
+# BioFoundry: Benchmarking single-cell models across biological tasks 
 
 <a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a>
 <a href="https://pytorchlightning.ai/"><img alt="Lightning" src="https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white"></a>
@@ -13,7 +13,7 @@
 
 ## Description
 
-scBench is a comprehensive benchmarking suite designed for evaluating single-cell foundation models and task-specific single-cell models. It offers out-of-the-box evaluations across a range of models and datasets, enabling researchers and developers to assess the performance of their models in a standardized manner.
+BioFoundry is a comprehensive benchmarking suite designed for evaluating single-cell foundation models and task-specific single-cell models. It offers out-of-the-box evaluations across a range of models and datasets, enabling researchers and developers to assess the performance of their models in a standardized manner.
 
 The codebase is highly extensible, allowing seamless integration of custom models and datasets. You can incorporate your own models by creating a [LightningModule](#making-a-lightning-module), and introduce new datasets by implementing a [LightningDataModule](#making-a-lightning-datamodule).
 
@@ -28,28 +28,28 @@ Key features:
 
 #### Pip
 
-{ADD PIP INSTALL SCBENCH}
+{ADD PIP INSTALL BioFoundry}
 
 Setting up conda environment:
 ```bash
 # clone project
-git clone https://github.com/aaronwtr/scBench
-cd scBench
+git clone https://github.com/aaronwtr/BioFoundry
+cd BioFoundry
 
 # [OPTIONAL] create conda or virtual environment
-conda create -n scb python=3.10
-conda activate scb
+conda create -n biofnd python=3.10
+conda activate biofnd
 ```
 
 Alternatively, using virtualenv:
 ```
-python3.10 -m venv scb
+python3.10 -m venv biofnd
 
 # Windows:
-scb\Scripts\activate
+biofnd\Scripts\activate
 
 # MacOS/Linux
-source scb/bin/activate
+source biofnd/bin/activate
 
 # install pytorch according to instructions
 # https://pytorch.org/get-started/
@@ -66,10 +66,10 @@ git clone https://github.com/YourGithubName/your-repo-name
 cd your-repo-name
 
 # create conda environment and install dependencies
-conda env create -f environment.yaml -n scb
+conda env create -f environment.yaml -n biofnd
 
 # activate conda environment
-conda activate scb
+conda activate biofnd
 ```
 
 ## Making a Lightning DataModule 
