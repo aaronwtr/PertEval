@@ -14,6 +14,8 @@ from src.utils.utils import zip_data_download_wrapper
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
 ROOT_DIR = os.path.dirname(SRC_DIR)
+with open(f'{ROOT_DIR}/cache/data_dir_cache.txt', 'r') as f:
+    DATA_DIR = f.read().strip()
 
 
 class PertDataModule(LightningDataModule):
@@ -56,7 +58,7 @@ class PertDataModule(LightningDataModule):
 
     def __init__(
             self,
-            data_dir: str = ROOT_DIR + "/data/",
+            data_dir: str = DATA_DIR,
             data_name: str = "norman",
             batch_size: int = 64,
             num_workers: int = 0,
@@ -64,7 +66,7 @@ class PertDataModule(LightningDataModule):
     ) -> None:
         """Initialize a `PertDataModule`.
 
-        :param data_dir: The data directory. Defaults to `"data/"`.
+        :param data_dir: The data directory. Defaults to `""`.
         :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "adamson", "dixit",
             "replogle_k562_essential" and "replogle_rpe1_essential".
         :param train_val_test_split: The train, validation and test split. Defaults to `(0.8, 0.05, 0.15)`.
@@ -107,7 +109,6 @@ class PertDataModule(LightningDataModule):
         Do not use it to assign state (self.x = y).
         """
         # TODO: Add support for downloading from a specified url
-
         print(f"Downloading {self.data_name} data...")
         if os.path.exists(self.data_path):
             print(f"Found local copy of {self.data_name} data...")
@@ -225,7 +226,6 @@ class PertDataModule(LightningDataModule):
 
     def get_pert_data(self):
         return self.pert_data
-
 
 
 if __name__ == "__main__":
