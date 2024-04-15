@@ -1,40 +1,10 @@
 from typing import Optional
 from gears.utils import get_similarity_network, GeneSimNetwork
-from gears import PertData
 
 import torch
 import torch.nn as nn
 
 from torch_geometric.nn import SGConv
-
-
-class MLP(torch.nn.Module):
-
-    def __init__(self, sizes, batch_norm=True, last_layer_act="linear"):
-        """
-        Multi-layer perceptron
-        :param sizes: list of sizes of the layers
-        :param batch_norm: whether to use batch normalization
-        :param last_layer_act: activation function of the last layer
-
-        """
-        super(MLP, self).__init__()
-        layers = []
-        for s in range(len(sizes) - 1):
-            layers = layers + [
-                torch.nn.Linear(sizes[s], sizes[s + 1]),
-                torch.nn.BatchNorm1d(sizes[s + 1])
-                if batch_norm and s < len(sizes) - 1 else None,
-                torch.nn.ReLU()
-            ]
-
-        layers = [l for l in layers if l is not None][:-1]
-        self.activation = last_layer_act
-        self.network = torch.nn.Sequential(*layers)
-        self.relu = torch.nn.ReLU()
-
-    def forward(self, x):
-        return self.network(x)
 
 
 class GEARSNetwork(torch.nn.Module):
@@ -55,10 +25,10 @@ class GEARSNetwork(torch.nn.Module):
             uncertainty: bool,
             uncertainty_reg: float,
             direction_lambda: float,
-            G_go: Optional[torch.Tensor] = None,
-            G_go_weight: Optional[torch.Tensor] = None,
-            G_coexpress: Optional[torch.Tensor] = None,
-            G_coexpress_weight: Optional[torch.Tensor] = None,
+            G_go: Optional[torch.Tensor] = torch.Tensor([]),
+            G_go_weight: Optional[torch.Tensor] = torch.Tensor([]),
+            G_coexpress: Optional[torch.Tensor] = torch.Tensor([]),
+            G_coexpress_weight: Optional[torch.Tensor] = torch.Tensor([]),
             no_perturb: bool = False,
             pert_emb_lambda: float = 0.2,
             num_genes: int = None,
@@ -85,6 +55,8 @@ class GEARSNetwork(torch.nn.Module):
         self.num_genes = num_genes
         self.num_perts = num_perts
 
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         # perturbation positional embedding added only to the perturbed genes
         self.pert_w = nn.Linear(1, self.hidden_size)
 
@@ -100,17 +72,25 @@ class GEARSNetwork(torch.nn.Module):
         self.pert_fuse = MLP([self.hidden_size, self.hidden_size, self.hidden_size], last_layer_act='ReLU')
 
         # gene co-expression GNN
-        self.G_coexpress = self.G_coexpress
-        self.G_coexpress_weight = self.G_coexpress_weight
+        if self.G_coexpress is not None:
+            self.G_coexpress = self.G_coexpress.to(self.device)
+            self.G_coexpress_weight = self.G_coexpress_weight.to(self.device)
+        else:
+            self.G_coexpress = self.G_coexpress
+            self.G_coexpress_weight = self.G_coexpress_weight
 
-        self.emb_pos = nn.Embedding(self.num_genes, self.hidden_size, max_norm=True)
+        self.emb_pos = nn.Embedding(self.num_genes, self.hidden_size, max_norm=True).to(self.device)
         self.layers_emb_pos = torch.nn.ModuleList()
         for i in range(1, self.num_layers_gene_pos + 1):
             self.layers_emb_pos.append(SGConv(self.hidden_size, self.hidden_size, 1))
 
         ### perturbation gene ontology GNN
-        self.G_sim = self.G_go
-        self.G_sim_weight = self.G_go_weight
+        if self.G_go is not None:
+            self.G_sim = self.G_go.to(self.device)
+            self.G_sim_weight = self.G_go_weight.to(self.device)
+        else:
+            self.G_sim = self.G_go
+            self.G_sim_weight = self.G_go_weight
 
         self.sim_layers = torch.nn.ModuleList()
         for i in range(1, self.num_layers + 1):
@@ -147,28 +127,28 @@ class GEARSNetwork(torch.nn.Module):
             self.uncertainty_w = MLP([self.hidden_size, self.hidden_size * 2, self.hidden_size, 1],
                                      last_layer_act='linear')
 
-    def forward(self, data):
+    def forward(self, x, pert_idx, batch):
         """
         Forward pass of the model
         """
-        x, pert_idx = data.x, data.pert_idx
+        # x, pert_idx = data.x, data.pert_idx
         if self.no_perturb:
             out = x.reshape(-1, 1)
             out = torch.split(torch.flatten(out), self.num_genes)
             return torch.stack(out)
         else:
-            num_graphs = len(data.batch.unique())
+            num_graphs = len(batch.batch.unique())
 
             ## get base gene embeddings
             emb = self.gene_emb(
-                torch.LongTensor(list(range(self.num_genes))).repeat(num_graphs, ))
+                torch.LongTensor(list(range(self.num_genes))).repeat(num_graphs, ).to(self.device))
             emb = self.bn_emb(emb)
             base_emb = self.emb_trans(emb)
 
             pos_emb = self.emb_pos(
-                torch.LongTensor(list(range(self.num_genes))).repeat(num_graphs, ))
+                torch.LongTensor(list(range(self.num_genes))).repeat(num_graphs, ).to(self.device)).to(self.device)
             for idx, layer in enumerate(self.layers_emb_pos):
-                pos_emb = layer(pos_emb, self.G_coexpress, self.G_coexpress_weight)
+                pos_emb = layer(pos_emb, self.G_coexpress.to(self.device), self.G_coexpress_weight.to(self.device))
                 if idx < len(self.layers_emb_pos) - 1:
                     pos_emb = pos_emb.relu()
 
@@ -184,11 +164,11 @@ class GEARSNetwork(torch.nn.Module):
                         pert_index.append([idx, j])
             pert_index = torch.tensor(pert_index).T
 
-            pert_global_emb = self.pert_emb(torch.LongTensor(list(range(self.num_perts))))
+            pert_global_emb = self.pert_emb(torch.LongTensor(list(range(self.num_perts))).to(self.device))
 
             ## augment global perturbation embedding with GNN
             for idx, layer in enumerate(self.sim_layers):
-                pert_global_emb = layer(pert_global_emb, self.G_go, self.G_go_weight)
+                pert_global_emb = layer(pert_global_emb, self.G_go.to(self.device), self.G_go_weight.to(self.device))
                 if idx < self.num_layers - 1:
                     pert_global_emb = pert_global_emb.relu()
 
@@ -288,3 +268,32 @@ class GEARSNetwork(torch.nn.Module):
             sim_network = GeneSimNetwork(edge_list, pertmodule.pert_list, node_map=pert_data.node_map_pert)
             self.G_go = sim_network.edge_index
             self.G_go_weight = sim_network.edge_weight
+
+
+class MLP(torch.nn.Module):
+
+    def __init__(self, sizes, batch_norm=True, last_layer_act="linear"):
+        """
+        Multi-layer perceptron
+        :param sizes: list of sizes of the layers
+        :param batch_norm: whether to use batch normalization
+        :param last_layer_act: activation function of the last layer
+
+        """
+        super(MLP, self).__init__()
+        layers = []
+        for s in range(len(sizes) - 1):
+            layers = layers + [
+                torch.nn.Linear(sizes[s], sizes[s + 1]),
+                torch.nn.BatchNorm1d(sizes[s + 1])
+                if batch_norm and s < len(sizes) - 1 else None,
+                torch.nn.ReLU()
+            ]
+
+        layers = [l for l in layers if l is not None][:-1]
+        self.activation = last_layer_act
+        self.network = torch.nn.Sequential(*layers)
+        self.relu = torch.nn.ReLU()
+
+    def forward(self, x):
+        return self.network(x)
