@@ -36,5 +36,7 @@ scheduler:
   step_size: 1
   gamma: 0.5
 
+model_name: gears
+
 # compile model for faster training with pytorch 2.0
 compile: false
