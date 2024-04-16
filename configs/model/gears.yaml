@@ -1,7 +1,7 @@
 _target_: src.models.gears_module.GEARSLitModule
 
 net:
-  _target_: src.models.components.gears.GEARSNetwork
+  _target_: src.models.components.gears.gears.GEARSNetwork
   hidden_size: 64
   num_go_gnn_layers: 1
   num_gene_gnn_layers: 1

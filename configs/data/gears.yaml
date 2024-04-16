@@ -1,5 +1,5 @@
-_target_: src.data.reproduction.gears_datamodule.PertDataModule
-data_dir: ${paths.data_dir}/perturb
+_target_: src.data.reproduction.gears.gears_datamodule.GEARSDataModule
+data_dir: ${paths.data_dir}
 batch_size: 32 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
 num_workers: 0
 pin_memory: False
