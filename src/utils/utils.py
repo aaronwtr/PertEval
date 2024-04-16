@@ -46,7 +46,7 @@ def extras(cfg: DictConfig) -> None:
 
     # writing data_dir to cache for easy access
     with open(f'{os.getcwd()}/cache/data_dir_cache.txt', 'w') as f:
-        f.write(cfg.get("paths")['data_dir'])
+        f.write(cfg.get("data")['data_dir'])
 
 
 def task_wrapper(task_func: Callable) -> Callable:
@@ -134,7 +134,6 @@ def dataverse_download(url: str = "", save_path: str = ""):
     :param url: the url of the dataset
     :param save_path: the path to save the dataset
     """
-
     if os.path.exists(save_path):
         print('Found local copy...')
     else:
@@ -142,6 +141,8 @@ def dataverse_download(url: str = "", save_path: str = ""):
         total_size_in_bytes = int(response.headers.get('content-length', 0))
         block_size = 1024
         progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
+        dir_path = save_path.split('/')[:-1]
+        os.makedirs('/'.join(dir_path), exist_ok=True)
         with open(save_path, 'wb') as file:
             for data in response.iter_content(block_size):
                 progress_bar.update(len(data))
@@ -164,3 +165,14 @@ def zip_data_download_wrapper(url: str = "", zip_path: str = ""):
             z.extractall(path=os.path.dirname(zip_path))
         os.remove(zip_path + '.zip')
         print("Done!")
+
+
+def find_root_dir(current_dir):
+    while True:
+        if '.project-root' in os.listdir(current_dir):
+            return current_dir
+        else:
+            current_dir = os.path.dirname(current_dir)
+
+        if current_dir == '/':  # if we have reached the root of the filesystem
+            raise FileNotFoundError("Could not find .project-root file.")
