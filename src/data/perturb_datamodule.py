@@ -152,6 +152,7 @@ class PertDataModule(LightningDataModule):
                 )
             self.batch_size_per_device = self.hparams.batch_size // self.trainer.world_size
 
+        # TODO: currently this is GEARS specific. We need to make this general for final evaluation
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             pert_data = PertData(self.data_path)
