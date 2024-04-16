@@ -44,6 +44,10 @@ def extras(cfg: DictConfig) -> None:
         log.info("Printing config tree with Rich! <cfg.extras.print_config=True>")
         rich_utils.print_config_tree(cfg, resolve=True, save_to_file=True)
 
+    # writing data_dir to cache for easy access
+    with open(f'{os.getcwd()}/cache/data_dir_cache.txt', 'w') as f:
+        f.write(cfg.get("paths")['data_dir'])
+
 
 def task_wrapper(task_func: Callable) -> Callable:
     """Optional decorator that controls the failure behavior when executing the task function.

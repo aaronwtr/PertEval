@@ -6,7 +6,7 @@ import torch
 from lightning import LightningModule
 from torch_geometric.data import Batch
 from torchmetrics import MaxMetric, MeanMetric
-from torchmetrics.regression import SpearmanCorrCoef
+from torchmetrics.regression import SpearmanCorrCoef, PearsonCorrCoef, MeanSquaredError
 
 from .components.gears import GEARSNetwork
 from gears.utils import loss_fct
@@ -45,14 +45,16 @@ class GEARSLitModule(LightningModule):
     Docs:
         https://lightning.ai/docs/pytorch/latest/common/lightning_module.html
     """
+
     def __init__(
-                self,
-                net: GEARSNetwork,
-                pertmodule: PertData,
-                optimizer: Any,
-                scheduler: Any,
-                compile: bool = False
-        ) -> None:
+            self,
+            net: GEARSNetwork,
+            pertmodule: PertData,
+            optimizer: Any,
+            scheduler: Any,
+            model_name: Any,
+            compile: bool = False
+    ) -> None:
         """Initialize a `GEARSLitModule`.
 
         :param net: The model to train.
@@ -77,37 +79,49 @@ class GEARSLitModule(LightningModule):
 
         self.ctrl_expression = torch.tensor(np.mean(adata.X[adata.obs.condition == 'ctrl'], axis=0)).reshape(-1, )
 
-        # metric objects for calculating and averaging accuracy across batches
-        num_genes = pertmodule.num_genes
-        self.train_spr = SpearmanCorrCoef(num_outputs=num_genes)
-        self.val_spr = SpearmanCorrCoef(num_outputs=num_genes)
-        self.test_spr = SpearmanCorrCoef(num_outputs=num_genes)
+        self.test_results = {}
+        self.pert_cat = []
+        self.test_pred = []
+        self.test_truth = []
+        self.test_pred_de = []
+        self.test_truth_de = []
 
         # for averaging loss across batches
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
-        self.test_loss = MeanMetric()
 
-        # for tracking best so far validation accuracy
-        self.val_spr_best = MaxMetric()
+        # for tracking best so far validation pearson correlation
+        self.val_loss_best = MaxMetric()
+
+        self.test_spr = SpearmanCorrCoef()
+        self.test_prs = PearsonCorrCoef()
+        self.test_mse = MeanSquaredError()
+
+        self.metric2fct = {
+            'mse': self.test_mse,
+            'pearson': self.test_prs,
+            'spearman': self.test_spr,
+        }
 
         self.net.model_initialize(pertmodule)
 
-    def forward(self, batch: Batch) -> torch.Tensor:
+        self.net.to(self.device)
+
+    def forward(self, x: torch.Tensor, pert_idx: list, batch: Batch) -> torch.Tensor:
         """Perform a forward pass through the model `self.net`.
 
-        :param batch: A PyG Batch object containing a subgraph passed to the model for training.
+        :param x: Flattened representation of GEARS input graphs.
+        :param pert_idx: The index of the perturbation.
+        :param batch: PyG Batch object.
         :return: A tensor of gene-level RNA expression.
         """
-        return self.net(batch)
+        return self.net(x, pert_idx, batch)
 
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
         # by default lightning executes validation step sanity checks before training starts,
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
-        self.val_spr.reset()
-        self.val_spr_best.reset()
 
     def model_step(
             self, batch: Batch
@@ -124,10 +138,10 @@ class GEARSLitModule(LightningModule):
         y = batch.y
 
         dir_lambda = self.net.direction_lambda
-        preds = self.forward(batch)
+        preds = self.forward(batch.x, batch.pert_idx, batch)
 
-        loss = self.criterion(preds, y, perts=batch.pert, ctrl=self.ctrl_expression, dict_filter=self.dict_filter,
-                              direction_lambda=dir_lambda)
+        loss = self.criterion(preds, y, perts=batch.pert, ctrl=self.ctrl_expression.to(self.device),
+                              dict_filter=self.dict_filter, direction_lambda=dir_lambda)
         return loss, preds, y
 
     def training_step(
@@ -143,10 +157,7 @@ class GEARSLitModule(LightningModule):
         loss, preds, targets = self.model_step(batch)
         # update and log metrics
         self.train_loss(loss)
-        train_spr = self.train_spr(preds, targets)
-        avg_train_spr = torch.mean(train_spr)
         self.log("train/loss", self.train_loss, on_step=True, on_epoch=True, prog_bar=True)
-        self.log("train/avg_spearman", avg_train_spr, on_step=False, on_epoch=True, prog_bar=True)
 
         # return loss or backpropagation will fail
         return loss
@@ -162,20 +173,14 @@ class GEARSLitModule(LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch)
+        loss, _, _ = self.model_step(batch)
         # update and log metrics
         self.val_loss(loss)
-        val_spr = self.val_spr(preds, targets)
-        avg_val_spr = torch.mean(val_spr)
         self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val/avg_spearman", avg_val_spr, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self) -> None:
         """Lightning hook that is called when a validation epoch ends."""
-        spr = self.val_spr.compute()
-        avg_val_spr = torch.mean(spr)
-        self.val_spr_best(avg_val_spr)
-        self.log("val/avg_spr_best", self.val_spr_best.compute(), sync_dist=True, prog_bar=True)
+        pass
 
     def test_step(self, batch: Batch, batch_idx: int) -> None:
         """Perform a single test step on a batch of data from the test set.
@@ -184,18 +189,82 @@ class GEARSLitModule(LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch)
+        self.pert_cat.extend(batch.pert)
 
-        # update and log metrics
-        self.test_loss(loss)
-        test_spr = self.test_spr(preds, targets)
-        avg_test_spr = torch.mean(test_spr)
-        self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test/spr", avg_test_spr, on_step=False, on_epoch=True, prog_bar=True)
+        _, p, t = self.model_step(batch)
+        self.test_pred.extend(p)
+        self.test_truth.extend(t)
+
+        # Differentially expressed genes
+        for itr, de_idx in enumerate(batch.de_idx):
+            self.test_pred_de.append(p[itr, de_idx])
+            self.test_truth_de.append(t[itr, de_idx])
+
+        # all genes
+        self.test_results['pert_cat'] = np.array(self.pert_cat)
+        pred = torch.stack(self.test_pred)
+        truth = torch.stack(self.test_truth)
+        self.test_results['pred'] = pred.cpu().numpy()
+        self.test_results['truth'] = truth.cpu().numpy()
+
+        pred_de = torch.stack(self.test_pred_de)
+        truth_de = torch.stack(self.test_truth_de)
+        self.test_results['pred_de'] = pred_de.cpu().numpy()
+        self.test_results['truth_de'] = truth_de.cpu().numpy()
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
-        pass
+        metrics = {}
+        metrics_pert = {}
+
+        for m in self.metric2fct.keys():
+            metrics[m] = []
+            metrics[m + '_de'] = []
+
+        for pert in np.unique(self.test_results['pert_cat']):
+            metrics_pert[pert] = {}
+            p_idx = np.where(self.test_results['pert_cat'] == pert)[0]
+
+            pert_preds = torch.tensor(self.test_results['pred'][p_idx].mean(0))
+            pert_truth = torch.tensor(self.test_results['truth'][p_idx].mean(0))
+            pert_truth_de = torch.tensor(self.test_results['truth_de'][p_idx].mean(0))
+            pert_preds_de = torch.tensor(self.test_results['pred_de'][p_idx].mean(0))
+            for m, fct in self.metric2fct.items():
+                if m == 'pearson':
+                    val = fct(pert_preds, pert_truth)
+                    if np.isnan(val):
+                        val = 0
+                else:
+                    val = fct(pert_preds, pert_truth)
+
+                metrics_pert[pert][m] = val
+                metrics[m].append(metrics_pert[pert][m])
+
+            if pert != 'ctrl':
+                for m, fct in self.metric2fct.items():
+                    if m == 'pearson':
+                        val = fct(pert_preds_de, pert_truth_de)
+                        if np.isnan(val):
+                            val = 0
+                    else:
+                        val = fct(pert_preds_de, pert_truth_de)
+
+                    metrics_pert[pert][m + '_de'] = val
+                    metrics[m + '_de'].append(metrics_pert[pert][m + '_de'])
+
+            else:
+                for m, fct in self.metric2fct.items():
+                    metrics_pert[pert][m + '_de'] = 0
+
+        for m in self.metric2fct.keys():
+            metrics[m] = np.mean(metrics[m])
+            metrics[m + '_de'] = np.mean(metrics[m + '_de'])
+
+        metric_names = ['mse', 'pearson', 'spearman']
+
+        for m in metric_names:
+            self.log("test/" + m, metrics[m])
+            self.log("test_de/" + m, metrics[m + '_de'])
 
     def setup(self, stage: str) -> None:
         """Lightning hook that is called at the beginning of fit (train + validate), validate,
