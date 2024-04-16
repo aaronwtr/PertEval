@@ -8,7 +8,7 @@ from torch_geometric.data import Batch
 from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.regression import SpearmanCorrCoef, PearsonCorrCoef, MeanSquaredError
 
-from .components.gears import GEARSNetwork
+from .components.gears.gears import GEARSNetwork
 from gears.utils import loss_fct
 from gears import PertData
 
@@ -48,6 +48,7 @@ class GEARSLitModule(LightningModule):
 
     def __init__(
             self,
+
             net: GEARSNetwork,
             pertmodule: PertData,
             optimizer: Any,
@@ -204,13 +205,13 @@ class GEARSLitModule(LightningModule):
         self.test_results['pert_cat'] = np.array(self.pert_cat)
         pred = torch.stack(self.test_pred)
         truth = torch.stack(self.test_truth)
-        self.test_results['pred'] = pred.cpu().numpy()
-        self.test_results['truth'] = truth.cpu().numpy()
+        self.test_results['pred'] = pred
+        self.test_results['truth'] = truth
 
         pred_de = torch.stack(self.test_pred_de)
         truth_de = torch.stack(self.test_truth_de)
-        self.test_results['pred_de'] = pred_de.cpu().numpy()
-        self.test_results['truth_de'] = truth_de.cpu().numpy()
+        self.test_results['pred_de'] = pred_de
+        self.test_results['truth_de'] = truth_de
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
@@ -232,7 +233,8 @@ class GEARSLitModule(LightningModule):
             for m, fct in self.metric2fct.items():
                 if m == 'pearson':
                     val = fct(pert_preds, pert_truth)
-                    if np.isnan(val):
+                    cpu_val = val.cpu().numpy()
+                    if np.isnan(cpu_val):
                         val = 0
                 else:
                     val = fct(pert_preds, pert_truth)
@@ -244,7 +246,8 @@ class GEARSLitModule(LightningModule):
                 for m, fct in self.metric2fct.items():
                     if m == 'pearson':
                         val = fct(pert_preds_de, pert_truth_de)
-                        if np.isnan(val):
+                        cpu_val = val.cpu().numpy()
+                        if np.isnan(cpu_val):
                             val = 0
                     else:
                         val = fct(pert_preds_de, pert_truth_de)
@@ -257,8 +260,10 @@ class GEARSLitModule(LightningModule):
                     metrics_pert[pert][m + '_de'] = 0
 
         for m in self.metric2fct.keys():
-            metrics[m] = np.mean(metrics[m])
-            metrics[m + '_de'] = np.mean(metrics[m + '_de'])
+            stacked_metrics = torch.stack(metrics[m])
+            metrics[m] = torch.mean(stacked_metrics)
+            stacked_metrics_de = torch.stack(metrics[m + '_de'])
+            metrics[m + '_de'] = torch.mean(stacked_metrics_de)
 
         metric_names = ['mse', 'pearson', 'spearman']
 
