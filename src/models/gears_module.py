@@ -8,7 +8,7 @@ from torch_geometric.data import Batch
 from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.regression import SpearmanCorrCoef, PearsonCorrCoef, MeanSquaredError
 
-from .components.gears.gears import GEARSNetwork
+from .reproduction.gears.gears import GEARSNetwork
 from gears.utils import loss_fct
 from gears import PertData
 
@@ -232,12 +232,11 @@ class GEARSLitModule(LightningModule):
             pert_preds_de = torch.tensor(self.test_results['pred_de'][p_idx].mean(0))
             for m, fct in self.metric2fct.items():
                 if m == 'pearson':
-                    val = fct(pert_preds, pert_truth)
-                    cpu_val = val.cpu().numpy()
-                    if np.isnan(cpu_val):
-                        val = torch.tensor(0)
+                    val = fct(pert_preds, pert_truth).item()
+                    if np.isnan(val):
+                        val = 0
                 else:
-                    val = fct(pert_preds, pert_truth)
+                    val = fct(pert_preds, pert_truth).item()
 
                 metrics_pert[pert][m] = val
                 metrics[m].append(metrics_pert[pert][m])
@@ -245,25 +244,25 @@ class GEARSLitModule(LightningModule):
             if pert != 'ctrl':
                 for m, fct in self.metric2fct.items():
                     if m == 'pearson':
-                        val = fct(pert_preds_de, pert_truth_de)
-                        cpu_val = val.cpu().numpy()
-                        if np.isnan(cpu_val):
-                            val = torch.tensor(0)
+                        val = fct(pert_preds_de, pert_truth_de).item()
+                        if np.isnan(val):
+                            val = 0
                     else:
-                        val = fct(pert_preds_de, pert_truth_de)
+                        val = fct(pert_preds_de, pert_truth_de).item()
 
                     metrics_pert[pert][m + '_de'] = val
                     metrics[m + '_de'].append(metrics_pert[pert][m + '_de'])
 
             else:
                 for m, fct in self.metric2fct.items():
-                    metrics_pert[pert][m + '_de'] = torch.tensor(0)
+                    metrics_pert[pert][m + '_de'] = 0
 
         for m in self.metric2fct.keys():
-            stacked_metrics = torch.stack(metrics[m])
-            metrics[m] = torch.mean(stacked_metrics)
-            stacked_metrics_de = torch.stack(metrics[m + '_de'])
-            metrics[m + '_de'] = torch.mean(stacked_metrics_de)
+            stacked_metrics = np.stack(metrics[m])
+            metrics[m] = np.mean(stacked_metrics)
+
+            stacked_metrics_de = np.stack(metrics[m + '_de'])
+            metrics[m + '_de'] = np.mean(stacked_metrics_de)
 
         metric_names = ['mse', 'pearson', 'spearman']
 
