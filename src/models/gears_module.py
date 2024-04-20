@@ -235,7 +235,7 @@ class GEARSLitModule(LightningModule):
                     val = fct(pert_preds, pert_truth)
                     cpu_val = val.cpu().numpy()
                     if np.isnan(cpu_val):
-                        val = 0
+                        val = torch.tensor(0)
                 else:
                     val = fct(pert_preds, pert_truth)
 
@@ -248,7 +248,7 @@ class GEARSLitModule(LightningModule):
                         val = fct(pert_preds_de, pert_truth_de)
                         cpu_val = val.cpu().numpy()
                         if np.isnan(cpu_val):
-                            val = 0
+                            val = torch.tensor(0)
                     else:
                         val = fct(pert_preds_de, pert_truth_de)
 
@@ -257,7 +257,7 @@ class GEARSLitModule(LightningModule):
 
             else:
                 for m, fct in self.metric2fct.items():
-                    metrics_pert[pert][m + '_de'] = 0
+                    metrics_pert[pert][m + '_de'] = torch.tensor(0)
 
         for m in self.metric2fct.keys():
             stacked_metrics = torch.stack(metrics[m])
