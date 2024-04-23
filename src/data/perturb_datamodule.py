@@ -1,15 +1,14 @@
 import os
+import numpy as np
 
-from typing import Any, Dict, Optional, Tuple, Union
-from gears import PertData, GEARS
-from ruamel.yaml import YAML
+from typing import Any, Dict, Optional
+from gears import PertData
 
-import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader
-from torchvision.transforms import transforms
 
 from src.utils.utils import zip_data_download_wrapper
+from src.utils.spectra.perturb import PerturbGraphData, SPECTRAPerturb
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
@@ -61,6 +60,7 @@ class PertDataModule(LightningDataModule):
             data_dir: str = DATA_DIR,
             data_name: str = "norman",
             batch_size: int = 64,
+            spectra_parameters: Optional[Dict[str, Any]] = None,
             num_workers: int = 0,
             pin_memory: bool = False,
     ) -> None:
@@ -79,6 +79,8 @@ class PertDataModule(LightningDataModule):
         self.num_genes = None
         self.num_perts = None
         self.pert_data = None
+        self.pertmodule = None
+        self.spectra_parameters = spectra_parameters
         self.data_name = data_name
 
         # this line allows to access init params with 'self.hparams' attribute
@@ -95,7 +97,7 @@ class PertDataModule(LightningDataModule):
 
         # need to call prepare and setup manually to guarantee proper model setup
         self.prepare_data()
-        self.setup()
+        # self.setup()
 
     def prepare_data(self) -> None:
         """Put all downloading and preprocessing logic that only needs to happen on one device here. Lightning ensures
@@ -131,7 +133,7 @@ class PertDataModule(LightningDataModule):
         else:
             raise ValueError("data_name should be either 'norman', 'adamson', 'dixit', 'replogle_k562_essential' or "
                              "'replogle_rpe1_essential'")
-        PertData(self.data_path)
+        self.pert_data = PertData(self.data_path)
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -157,28 +159,39 @@ class PertDataModule(LightningDataModule):
         if not self.data_train and not self.data_val and not self.data_test:
             pert_data = PertData(self.data_path)
             pert_data.load(data_path=self.data_path)
-            pert_data.prepare_split(split='simulation', seed=1)
-            pert_data.get_dataloader(batch_size=self.batch_size_per_device, test_batch_size=128)
-            self.pert_data = pert_data
-            self.gene_list = pert_data.gene_names.values.tolist()
-            self.pert_list = pert_data.pert_names.tolist()
-            # calculating num_genes and num_perts for GEARS
-            self.num_genes = len(self.gene_list)
-            self.num_perts = len(self.pert_list)
-            # adding num_genes and num_perts to hydra configs
-            yaml = YAML()
-            yaml.preserve_quotes = True
-            yaml.width = 4096
-            with open(f'{ROOT_DIR}/configs/model/gears.yaml', 'r') as f:
-                yaml_data = yaml.load(f)
-            yaml_data['net']['num_genes'] = self.num_genes
-            yaml_data['net']['num_perts'] = self.num_perts
-            with open(f'{ROOT_DIR}/configs/model/gears.yaml', 'w') as f:
-                yaml.dump(yaml_data, f)
-            dataloaders = pert_data.dataloader
-            self.data_train = dataloaders['train_loader']
-            self.data_val = dataloaders['val_loader']
-            self.data_test = dataloaders['test_loader']
+            perturb_graph_data = PerturbGraphData(pert_data, 'norman')
+            sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
+            sc_spectra.pre_calculate_spectra_properties(self.data_path)
+
+            # todo: think of how to do the below without introducing a self.spectra_parameters attribute
+
+            sparsification_step = self.spectra_parameters['sparsification_step']
+            sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.05, float(sparsification_step))]
+            self.spectra_parameters['sparsification_step'] = sparsification
+            sc_spectra.generate_spectra_splits(**self.spectra_parameters)
+
+            # pert_data.prepare_split(split='simulation', seed=1)
+            # pert_data.get_dataloader(batch_size=self.batch_size_per_device, test_batch_size=128)
+            # self.pert_data = pert_data
+            # self.gene_list = pert_data.gene_names.values.tolist()
+            # self.pert_list = pert_data.pert_names.tolist()
+            # # calculating num_genes and num_perts for GEARS
+            # self.num_genes = len(self.gene_list)
+            # self.num_perts = len(self.pert_list)
+            # # adding num_genes and num_perts to hydra configs
+            # yaml = YAML()
+            # yaml.preserve_quotes = True
+            # yaml.width = 4096
+            # with open(f'{ROOT_DIR}/configs/model/gears.yaml', 'r') as f:
+            #     yaml_data = yaml.load(f)
+            # yaml_data['net']['num_genes'] = self.num_genes
+            # yaml_data['net']['num_perts'] = self.num_perts
+            # with open(f'{ROOT_DIR}/configs/model/gears.yaml', 'w') as f:
+            #     yaml.dump(yaml_data, f)
+            # dataloaders = pert_data.dataloader
+            # self.data_train = dataloaders['train_loader']
+            # self.data_val = dataloaders['val_loader']
+            # self.data_test = dataloaders['test_loader']
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
