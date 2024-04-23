@@ -8,6 +8,8 @@ max_epochs: 20
 accelerator: cpu
 devices: 1
 
+num_sanity_val_steps: 0
+
 # mixed precision for extra speed-up
 # precision: 16
 

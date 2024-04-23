@@ -1,0 +1,10 @@
+_target_: src.data.perturb_datamodule.PerturbDataModule
+data_dir: ${paths.data_dir}
+batch_size: 32 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+spectra_parameters:
+  'number_repeats': 3,
+  'random_seed': [42, 44, 46],
+  'sparsification_step': 0.05,
+  'force_reconstruct': True,
+num_workers: 0
+pin_memory: False
