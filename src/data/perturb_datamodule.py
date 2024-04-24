@@ -89,6 +89,9 @@ class PertDataModule(LightningDataModule):
 
         self.data_path = os.path.join(data_dir, self.data_name)
 
+        if not os.path.exists(self.data_path):
+            os.makedirs(self.data_path)
+
         self.data_train: Optional[DataLoader] = None
         self.data_val: Optional[DataLoader] = None
         self.data_test: Optional[DataLoader] = None
@@ -97,7 +100,7 @@ class PertDataModule(LightningDataModule):
 
         # need to call prepare and setup manually to guarantee proper model setup
         self.prepare_data()
-        # self.setup()
+        self.setup()
 
     def prepare_data(self) -> None:
         """Put all downloading and preprocessing logic that only needs to happen on one device here. Lightning ensures
@@ -133,7 +136,7 @@ class PertDataModule(LightningDataModule):
         else:
             raise ValueError("data_name should be either 'norman', 'adamson', 'dixit', 'replogle_k562_essential' or "
                              "'replogle_rpe1_essential'")
-        self.pert_data = PertData(self.data_path)
+        PertData(self.data_path)
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -163,12 +166,14 @@ class PertDataModule(LightningDataModule):
             sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
             sc_spectra.pre_calculate_spectra_properties(self.data_path)
 
-            # todo: think of how to do the below without introducing a self.spectra_parameters attribute
-
             sparsification_step = self.spectra_parameters['sparsification_step']
             sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.05, float(sparsification_step))]
-            self.spectra_parameters['sparsification_step'] = sparsification
+            self.spectra_parameters.pop('sparsification_step')
+            self.spectra_parameters['number_repeats'] = int(self.spectra_parameters['number_repeats'])
+            self.spectra_parameters['spectral_parameters'] = sparsification
+            self.spectra_parameters['data_path'] = self.data_path
             sc_spectra.generate_spectra_splits(**self.spectra_parameters)
+            print('joe')
 
             # pert_data.prepare_split(split='simulation', seed=1)
             # pert_data.get_dataloader(batch_size=self.batch_size_per_device, test_batch_size=128)
