@@ -59,6 +59,7 @@ class PertDataModule(LightningDataModule):
             self,
             data_dir: str = DATA_DIR,
             data_name: str = "norman",
+            split: str = "0.00_0",
             batch_size: int = 64,
             spectra_parameters: Optional[Dict[str, Any]] = None,
             num_workers: int = 0,
@@ -74,6 +75,9 @@ class PertDataModule(LightningDataModule):
         :param num_workers: The number of workers. Defaults to `0`.
         :param pin_memory: Whether to pin memory. Defaults to `False`.
         """
+        # TODO [ ]: Train on one spectra train-test and process correctly
+        # TODO [ ]: Setup multirun experiment to run on all spectra train-test splits
+        
         super().__init__()
 
         self.num_genes = None
@@ -82,6 +86,7 @@ class PertDataModule(LightningDataModule):
         self.pertmodule = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
+        self.split = split
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
@@ -89,8 +94,8 @@ class PertDataModule(LightningDataModule):
 
         self.data_path = os.path.join(data_dir, self.data_name)
 
-        if not os.path.exists(self.data_path):
-            os.makedirs(self.data_path)
+        # if not os.path.exists(self.data_path):
+        #     os.makedirs(self.data_path)
 
         self.data_train: Optional[DataLoader] = None
         self.data_val: Optional[DataLoader] = None
@@ -171,9 +176,16 @@ class PertDataModule(LightningDataModule):
             self.spectra_parameters.pop('sparsification_step')
             self.spectra_parameters['number_repeats'] = int(self.spectra_parameters['number_repeats'])
             self.spectra_parameters['spectral_parameters'] = sparsification
-            self.spectra_parameters['data_path'] = self.data_path
-            sc_spectra.generate_spectra_splits(**self.spectra_parameters)
-            print('joe')
+            self.spectra_parameters['data_path'] = self.data_path + "/"
+
+            if not os.path.exists(f"{self.data_path}/norman_SPECTRA_splits"):
+                sc_spectra.generate_spectra_splits(**self.spectra_parameters)
+
+            # open train and test.pkl from norman_SPECTRA_splits
+            all_splits = os.listdir(f"{self.data_path}/norman_SPECTRA_splits")
+            all_splits = sorted(all_splits, key=lambda x: (float(x.split('_')[1]), int(x.split('_')[2])))
+
+            # sc_spectra.return_split_samples())
 
             # pert_data.prepare_split(split='simulation', seed=1)
             # pert_data.get_dataloader(batch_size=self.batch_size_per_device, test_batch_size=128)
