@@ -3,6 +3,7 @@ import numpy as np
 
 from typing import Any, Dict, Optional
 from gears import PertData
+from pertpy import data as scpert_data
 
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader
@@ -75,9 +76,23 @@ class PertDataModule(LightningDataModule):
         :param num_workers: The number of workers. Defaults to `0`.
         :param pin_memory: Whether to pin memory. Defaults to `False`.
         """
+        # TODO [ ]: Integrate scPerturb
+        #           Procedure:
+        #           [X] Select HVGs
+        #            ------ DOES SPECTRA DO THIS? ------
+        #           [ ] Randomly pair non-perturbed control cells with perturbed cells (same type)
+        #           [ ] log2 transform the input and target values
+        #           [ ] subtract the control from the perturbed cells to get the perturbation effect
+        #            ------ DOES SPECTRA DO THIS? ------
+        #           [ ] generate SPECTRA splits
+        #           [ ] calculate foundation model embeddings for the input (control) cells
+        #           [ ] train GEARS MLP decoder for predicting perturbation effect on the embeddings
+        #           [ ] train MLP decoder for predicting perturbation effect on the embeddings
+        #           [ ] train logistic regression model for predicting perturbation effect on the embeddings
+        #           [ ] evaluate PCC -> AUSPC for perturbation effect magnitude
+        #           [ ] evaluate MCC for perturbation effect direction (predicted up/down vs true up/down)
         # TODO [ ]: Train on one spectra train-test and process correctly
         # TODO [ ]: Setup multirun experiment to run on all spectra train-test splits
-        
         super().__init__()
 
         self.num_genes = None
@@ -165,25 +180,30 @@ class PertDataModule(LightningDataModule):
         # TODO: currently this is GEARS specific. We need to make this general for final evaluation
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            pert_data = PertData(self.data_path)
-            pert_data.load(data_path=self.data_path)
-            perturb_graph_data = PerturbGraphData(pert_data, 'norman')
-            sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
-            sc_spectra.pre_calculate_spectra_properties(self.data_path)
+            # pert_data = PertData(self.data_path)
+            pert_adata = scpert_data.norman_2019()
+            highly_variable_genes = pert_adata.var_names[pert_adata.var['highly_variable']]
+            hv_pert_adata = pert_adata[:, highly_variable_genes]
+            print('joe')
 
-            sparsification_step = self.spectra_parameters['sparsification_step']
-            sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.05, float(sparsification_step))]
-            self.spectra_parameters.pop('sparsification_step')
-            self.spectra_parameters['number_repeats'] = int(self.spectra_parameters['number_repeats'])
-            self.spectra_parameters['spectral_parameters'] = sparsification
-            self.spectra_parameters['data_path'] = self.data_path + "/"
-
-            if not os.path.exists(f"{self.data_path}/norman_SPECTRA_splits"):
-                sc_spectra.generate_spectra_splits(**self.spectra_parameters)
-
-            # open train and test.pkl from norman_SPECTRA_splits
-            all_splits = os.listdir(f"{self.data_path}/norman_SPECTRA_splits")
-            all_splits = sorted(all_splits, key=lambda x: (float(x.split('_')[1]), int(x.split('_')[2])))
+            # pert_data.load(data_path=self.data_path)
+            # perturb_graph_data = PerturbGraphData(pert_data, 'norman')
+            # sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
+            # sc_spectra.pre_calculate_spectra_properties(self.data_path)
+            #
+            # sparsification_step = self.spectra_parameters['sparsification_step']
+            # sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.05, float(sparsification_step))]
+            # self.spectra_parameters.pop('sparsification_step')
+            # self.spectra_parameters['number_repeats'] = int(self.spectra_parameters['number_repeats'])
+            # self.spectra_parameters['spectral_parameters'] = sparsification
+            # self.spectra_parameters['data_path'] = self.data_path + "/"
+            #
+            # if not os.path.exists(f"{self.data_path}/norman_SPECTRA_splits"):
+            #     sc_spectra.generate_spectra_splits(**self.spectra_parameters)
+            #
+            # # open train and test.pkl from norman_SPECTRA_splits
+            # all_splits = os.listdir(f"{self.data_path}/norman_SPECTRA_splits")
+            # all_splits = sorted(all_splits, key=lambda x: (float(x.split('_')[1]), int(x.split('_')[2])))
 
             # sc_spectra.return_split_samples())
 
