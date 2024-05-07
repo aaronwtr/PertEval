@@ -8,7 +8,10 @@ from gears.pertdata import PertData
 
 class PerturbGraphData(SpectraDataset):
     def parse(self, pert_data):
-        self.adata = pert_data.adata
+        if isinstance(pert_data, PertData):
+            self.adata = pert_data.adata
+        else:
+            self.adata = pert_data
         self.control_expression = self.adata[self.adata.obs['condition'] == 'ctrl'].X.toarray().mean(axis=0)
         return [p for p in self.adata.obs['condition'].unique() if p != 'ctrl']
 
