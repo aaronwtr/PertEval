@@ -80,9 +80,9 @@ class PertDataModule(LightningDataModule):
         #           Procedure:
         #           [X] Select HVGs
         #            ------ DOES SPECTRA DO THIS? ------
-        #           [ ] Randomly pair non-perturbed control cells with perturbed cells (same type)
-        #           [ ] log2 transform the input and target values
-        #           [ ] subtract the control from the perturbed cells to get the perturbation effect
+        #           [X] Randomly pair non-perturbed control cells with perturbed cells (same type)
+        #           [X] log2 transform the input and target values
+        #           [X] subtract the control from the perturbed cells to get the perturbation effect
         #            ------ DOES SPECTRA DO THIS? ------
         #           [ ] generate SPECTRA splits
         #           [ ] calculate foundation model embeddings for the input (control) cells
@@ -181,10 +181,20 @@ class PertDataModule(LightningDataModule):
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             # pert_data = PertData(self.data_path)
+
             pert_adata = scpert_data.norman_2019()
             highly_variable_genes = pert_adata.var_names[pert_adata.var['highly_variable']]
             hv_pert_adata = pert_adata[:, highly_variable_genes]
+            single_gene_mask = [True if "+" not in name else False for name in hv_pert_adata.obs['perturbation_name']]
+
+            sghv_pert_adata = hv_pert_adata[single_gene_mask, :]
+            sghv_pert_adata.obs['condition'] = sghv_pert_adata.obs['perturbation_name'].replace('control', 'ctrl')
+
             print('joe')
+
+            # TODO:
+            #  - load perturb_graph_data
+            #  - check how the perturbations are partitioned in spectra and if this is done properly
 
             # pert_data.load(data_path=self.data_path)
             # perturb_graph_data = PerturbGraphData(pert_data, 'norman')
