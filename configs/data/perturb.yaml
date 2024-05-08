@@ -6,6 +6,6 @@ spectra_parameters:
   'random_seed': [42, 44, 46]
   'sparsification_step': 0.05
   'force_reconstruct': True
-split: 0.00_0
+split: "0.00_0"
 num_workers: 0
 pin_memory: False
