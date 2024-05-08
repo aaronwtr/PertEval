@@ -84,7 +84,7 @@ class PertDataModule(LightningDataModule):
         #           [X] log2 transform the input and target values
         #           [X] subtract the control from the perturbed cells to get the perturbation effect
         #            ------ DOES SPECTRA DO THIS? ------
-        #           [ ] generate SPECTRA splits
+        #           [X] generate SPECTRA splits
         #           [ ] calculate foundation model embeddings for the input (control) cells
         #           [ ] train GEARS MLP decoder for predicting perturbation effect on the embeddings
         #           [ ] train MLP decoder for predicting perturbation effect on the embeddings
@@ -99,6 +99,7 @@ class PertDataModule(LightningDataModule):
         self.num_perts = None
         self.pert_data = None
         self.pertmodule = None
+        self.adata = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
         self.split = split
@@ -128,35 +129,21 @@ class PertDataModule(LightningDataModule):
         within. In case of multi-node training, the execution of this hook depends upon `self.prepare_data_per_node()`.
 
         Downloading:
-        Currently, supports "adamson", "norman", "dixit", "replogle_k562_essential" and "replogle_rpe1_essential"
-        datasets.
+        Currently, supports "gasperini", "norman", "repogle" datasets.
 
         Do not use it to assign state (self.x = y).
         """
-        # TODO: Add support for downloading from a specified url
-        print(f"Downloading {self.data_name} data...")
-        if os.path.exists(self.data_path):
-            print(f"Found local copy of {self.data_name} data...")
-        elif self.data_name in ['norman', 'adamson', 'dixit', 'replogle_k562_essential', 'replogle_rpe1_essential']:
-            ## load from harvard dataverse
-            if self.data_name == 'norman':
-                url = 'https://dataverse.harvard.edu/api/access/datafile/6154020'
-            elif self.data_name == 'adamson':
-                url = 'https://dataverse.harvard.edu/api/access/datafile/6154417'
-            elif self.data_name == 'dixit':
-                url = 'https://dataverse.harvard.edu/api/access/datafile/6154416'
-            elif self.data_name == 'replogle_k562_essential':
-                ## Note: This is not the complete dataset and has been filtered
-                url = 'https://dataverse.harvard.edu/api/access/datafile/7458695'
-            elif self.data_name == 'replogle_rpe1_essential':
-                ## Note: This is not the complete dataset and has been filtered
-                url = 'https://dataverse.harvard.edu/api/access/datafile/7458694'
-            zip_data_download_wrapper(url, self.data_path)
-            print(f"Successfully downloaded {self.data_name} data and saved to {self.data_path}")
+        data_files = os.listdir("data/")
+        if self.data_name in ["norman", "gasperini", "repogle"]:
+            if self.data_name == "norman":
+                self.adata = scpert_data.norman_2019()
+            if self.data_name == "gasperini":
+                self.adata = scpert_data.gasperini_2019_atscale()
+            if self.data_name == "repogle":
+                self.adata = scpert_data.replogle_2022_k562_gwps()
         else:
-            raise ValueError("data_name should be either 'norman', 'adamson', 'dixit', 'replogle_k562_essential' or "
-                             "'replogle_rpe1_essential'")
-        PertData(self.data_path)
+            raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman', 'gasperini', "
+                             f"'repogle'")
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -177,12 +164,9 @@ class PertDataModule(LightningDataModule):
                 )
             self.batch_size_per_device = self.hparams.batch_size // self.trainer.world_size
 
-        # TODO: currently this is GEARS specific. We need to make this general for final evaluation
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            # pert_data = PertData(self.data_path)
-
-            pert_adata = scpert_data.norman_2019()
+            pert_adata = self.adata
             highly_variable_genes = pert_adata.var_names[pert_adata.var['highly_variable']]
             hv_pert_adata = pert_adata[:, highly_variable_genes]
             single_gene_mask = [True if "+" not in name else False for name in hv_pert_adata.obs['perturbation_name']]
@@ -190,55 +174,26 @@ class PertDataModule(LightningDataModule):
             sghv_pert_adata = hv_pert_adata[single_gene_mask, :]
             sghv_pert_adata.obs['condition'] = sghv_pert_adata.obs['perturbation_name'].replace('control', 'ctrl')
 
+            perturb_graph_data = PerturbGraphData(sghv_pert_adata, 'norman')
+
+            sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
+            sc_spectra.pre_calculate_spectra_properties(self.data_path)
+
+            sparsification_step = self.spectra_parameters['sparsification_step']
+            sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.05, float(sparsification_step))]
+            self.spectra_parameters.pop('sparsification_step')
+            self.spectra_parameters['number_repeats'] = int(self.spectra_parameters['number_repeats'])
+            self.spectra_parameters['spectral_parameters'] = sparsification
+            self.spectra_parameters['data_path'] = self.data_path + "/"
+
+            if not os.path.exists(f"{self.data_path}/norman_SPECTRA_splits"):
+                sc_spectra.generate_spectra_splits(**self.spectra_parameters)
+
+            sp = self.split.split('_')[0]
+            rpt = self.split.split('_')[1]
+            train, test = sc_spectra.return_split_samples(sp, rpt, f"{self.data_path}/{self.data_name}")
+            # todo: pass train and test to dataloader (see GEARS)
             print('joe')
-
-            # TODO:
-            #  - load perturb_graph_data
-            #  - check how the perturbations are partitioned in spectra and if this is done properly
-
-            # pert_data.load(data_path=self.data_path)
-            # perturb_graph_data = PerturbGraphData(pert_data, 'norman')
-            # sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
-            # sc_spectra.pre_calculate_spectra_properties(self.data_path)
-            #
-            # sparsification_step = self.spectra_parameters['sparsification_step']
-            # sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.05, float(sparsification_step))]
-            # self.spectra_parameters.pop('sparsification_step')
-            # self.spectra_parameters['number_repeats'] = int(self.spectra_parameters['number_repeats'])
-            # self.spectra_parameters['spectral_parameters'] = sparsification
-            # self.spectra_parameters['data_path'] = self.data_path + "/"
-            #
-            # if not os.path.exists(f"{self.data_path}/norman_SPECTRA_splits"):
-            #     sc_spectra.generate_spectra_splits(**self.spectra_parameters)
-            #
-            # # open train and test.pkl from norman_SPECTRA_splits
-            # all_splits = os.listdir(f"{self.data_path}/norman_SPECTRA_splits")
-            # all_splits = sorted(all_splits, key=lambda x: (float(x.split('_')[1]), int(x.split('_')[2])))
-
-            # sc_spectra.return_split_samples())
-
-            # pert_data.prepare_split(split='simulation', seed=1)
-            # pert_data.get_dataloader(batch_size=self.batch_size_per_device, test_batch_size=128)
-            # self.pert_data = pert_data
-            # self.gene_list = pert_data.gene_names.values.tolist()
-            # self.pert_list = pert_data.pert_names.tolist()
-            # # calculating num_genes and num_perts for GEARS
-            # self.num_genes = len(self.gene_list)
-            # self.num_perts = len(self.pert_list)
-            # # adding num_genes and num_perts to hydra configs
-            # yaml = YAML()
-            # yaml.preserve_quotes = True
-            # yaml.width = 4096
-            # with open(f'{ROOT_DIR}/configs/model/gears.yaml', 'r') as f:
-            #     yaml_data = yaml.load(f)
-            # yaml_data['net']['num_genes'] = self.num_genes
-            # yaml_data['net']['num_perts'] = self.num_perts
-            # with open(f'{ROOT_DIR}/configs/model/gears.yaml', 'w') as f:
-            #     yaml.dump(yaml_data, f)
-            # dataloaders = pert_data.dataloader
-            # self.data_train = dataloaders['train_loader']
-            # self.data_val = dataloaders['val_loader']
-            # self.data_test = dataloaders['test_loader']
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
