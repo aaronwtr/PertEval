@@ -1,14 +1,14 @@
 import os
+import torch
+
 import numpy as np
 
 from typing import Any, Dict, Optional
-from gears import PertData
 from pertpy import data as scpert_data
 
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
-from src.utils.utils import zip_data_download_wrapper
 from src.utils.spectra.perturb import PerturbGraphData, SPECTRAPerturb
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -69,8 +69,8 @@ class PertDataModule(LightningDataModule):
         """Initialize a `PertDataModule`.
 
         :param data_dir: The data directory. Defaults to `""`.
-        :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "adamson", "dixit",
-            "replogle_k562_essential" and "replogle_rpe1_essential".
+        :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "gasperini", and
+        "repogle".
         :param train_val_test_split: The train, validation and test split. Defaults to `(0.8, 0.05, 0.15)`.
         :param batch_size: The batch size. Defaults to `64`.
         :param num_workers: The number of workers. Defaults to `0`.
@@ -110,8 +110,8 @@ class PertDataModule(LightningDataModule):
 
         self.data_path = os.path.join(data_dir, self.data_name)
 
-        # if not os.path.exists(self.data_path):
-        #     os.makedirs(self.data_path)
+        if not os.path.exists(self.data_path):
+            os.makedirs(self.data_path)
 
         self.data_train: Optional[DataLoader] = None
         self.data_val: Optional[DataLoader] = None
@@ -192,7 +192,12 @@ class PertDataModule(LightningDataModule):
             sp = self.split.split('_')[0]
             rpt = self.split.split('_')[1]
             train, test = sc_spectra.return_split_samples(sp, rpt, f"{self.data_path}/{self.data_name}")
-            # todo: pass train and test to dataloader (see GEARS)
+
+            # TODO:
+            #  [ ] just get ids for train and test and then get the corresponding data from the adata object.
+            #  [ ] randomly sample a control vector for each perturbed vector. Do this by getting all the control data
+            #      in a matrix, and then sampling a vector from this randomly.
+
             print('joe')
 
     def train_dataloader(self) -> DataLoader[Any]:
