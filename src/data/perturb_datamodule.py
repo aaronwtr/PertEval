@@ -166,15 +166,17 @@ class PertDataModule(LightningDataModule):
 
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            pert_adata = self.adata
-            highly_variable_genes = pert_adata.var_names[pert_adata.var['highly_variable']]
-            hv_pert_adata = pert_adata[:, highly_variable_genes]
+            adata = self.adata
+            highly_variable_genes = adata.var_names[adata.var['highly_variable']]
+            hv_pert_adata = adata[:, highly_variable_genes]
             single_gene_mask = [True if "+" not in name else False for name in hv_pert_adata.obs['perturbation_name']]
 
             sghv_pert_adata = hv_pert_adata[single_gene_mask, :]
             sghv_pert_adata.obs['condition'] = sghv_pert_adata.obs['perturbation_name'].replace('control', 'ctrl')
+            ctrl_adata = sghv_pert_adata[sghv_pert_adata.obs['condition'] == 'ctrl', :]
+            pert_adata = sghv_pert_adata[sghv_pert_adata.obs['condition'] != 'ctrl', :]
 
-            perturb_graph_data = PerturbGraphData(sghv_pert_adata, 'norman')
+            perturb_graph_data = PerturbGraphData(sghv_pert_adata, self.data_name)
 
             sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
             sc_spectra.pre_calculate_spectra_properties(self.data_path)
@@ -192,15 +194,39 @@ class PertDataModule(LightningDataModule):
             sp = self.split.split('_')[0]
             rpt = self.split.split('_')[1]
             train, test = sc_spectra.return_split_samples(sp, rpt, f"{self.data_path}/{self.data_name}")
+            pert_list = perturb_graph_data.samples
+            pert_list_idx = [i for i in range(len(pert_list))]
+            pert_list_dict = {pert_list[i]: i for i in range(len(pert_list))}
+            train_perts = [pert_list[i] for i in train]
+            test_perts = [pert_list[i] for i in test]
 
-            # TODO:
-            #  [ ] just get ids for train and test and then get the corresponding data from the adata object.
-            #  [ ] randomly sample a control vector for each perturbed vector. Do this by getting all the control data
-            #      in a matrix, and then sampling a vector from this randomly.
+            train_target = pert_adata[pert_adata.obs['condition'].isin(train_perts), :]
+            test_target = pert_adata[pert_adata.obs['condition'].isin(test_perts), :]
+
+            num_perts = len(pert_list)
+
+            pert_one_hot_ref = torch.eye(num_perts)[pert_list_idx]
+
+            all_perts_train = train_target.obs['condition'].values
+            all_perts_train_idx = [pert_list_dict[pert] for pert in all_perts_train]
+
+            all_perts_test = test_target.obs['condition'].values
+            all_perts_test_idx = [pert_list_dict[pert] for pert in all_perts_test]
+
+            one_hot_perts_train = pert_one_hot_ref[torch.tensor(all_perts_train_idx)]
+            one_hot_perts_test = pert_one_hot_ref[torch.tensor(all_perts_test_idx)]
+
+            # todo
+            #  [ ] process the control data (random sampling from control data for each perturbed data)
+            #  [ ] get perturbed gene expression data targets
+            #  [ ] concat control gene expression input and one hot encoded perturbation labels
+
+            # gears implementation of sampling control: Xs = ctrl_adata[np.random.randint(0, len(ctrl_adata), num_samples), :].X.toarray()
+            train_target_x = train_target.X.toarray()
 
             print('joe')
 
-    def train_dataloader(self) -> DataLoader[Any]:
+def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
 
         :return: The train dataloader.
