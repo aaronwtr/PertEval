@@ -133,14 +133,13 @@ class PertDataModule(LightningDataModule):
 
         Do not use it to assign state (self.x = y).
         """
-        data_files = os.listdir("data/")
         if self.data_name in ["norman", "gasperini", "repogle"]:
             if self.data_name == "norman":
-                self.adata = scpert_data.norman_2019()
+                scpert_data.norman_2019()
             if self.data_name == "gasperini":
-                self.adata = scpert_data.gasperini_2019_atscale()
+                scpert_data.gasperini_2019_atscale()
             if self.data_name == "repogle":
-                self.adata = scpert_data.replogle_2022_k562_gwps()
+                scpert_data.replogle_2022_k562_gwps()
         else:
             raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman', 'gasperini', "
                              f"'repogle'")
