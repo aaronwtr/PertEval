@@ -77,8 +77,7 @@ class PerturbData(Dataset):
         sc_spectra.pre_calculate_spectra_properties(f"{self.data_path}/{self.data_name}")
 
         sparsification_step = self.spectra_params['sparsification_step']
-        sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.05, float(sparsification_step))]
-        self.spectra_params.pop('sparsification_step')
+        sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.01, float(sparsification_step))]
         self.spectra_params['number_repeats'] = int(self.spectra_params['number_repeats'])
         self.spectra_params['spectral_parameters'] = sparsification
         self.spectra_params['data_path'] = self.data_path + "/"
