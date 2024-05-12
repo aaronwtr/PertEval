@@ -4,7 +4,7 @@ batch_size: 32 # Needs to be divisible by the number of devices (e.g., if in a d
 spectra_parameters:
   'number_repeats': 3
   'random_seed': [42, 44, 46]
-  'sparsification_step': 0.05
+  'sparsification_step': 0.1
   'force_reconstruct': True
 split: "0.00_0"
 num_workers: 0
