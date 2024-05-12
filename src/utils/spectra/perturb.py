@@ -1,7 +1,7 @@
-from spectrae import Spectra, SpectraDataset
+from src.utils.spectra.spectra import Spectra
+from src.utils.spectra.dataset import SpectraDataset
 
 import numpy as np
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 from gears.pertdata import PertData
 
