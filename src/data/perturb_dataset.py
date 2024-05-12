@@ -1,12 +1,11 @@
 import torch
-import os
 
 import numpy as np
 
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 
-from src.utils.spectra.perturb import PerturbGraphData, SPECTRAPerturb
+from src.utils.spectra import get_splits
 
 
 class PerturbData(Dataset):
@@ -27,7 +26,7 @@ class PerturbData(Dataset):
             ctrl_adata = self.sghv_pert_adata[self.sghv_pert_adata.obs['condition'] == 'ctrl', :]
             pert_adata = self.sghv_pert_adata[self.sghv_pert_adata.obs['condition'] != 'ctrl', :]
 
-            train, test, pert_list = self.spectra(spectral_parameter)
+            train, test, pert_list = get_splits.spectra(spectral_parameter)
 
             pert_list_idx = [i for i in range(len(pert_list))]
             pert_list_dict = {pert_list[i]: i for i in range(len(pert_list))}
@@ -69,29 +68,6 @@ class PerturbData(Dataset):
             self.val_target = torch.from_numpy(val_targets)
             self.X_test = torch.from_numpy(np.concatenate((test_input_expr, one_hot_perts_test), axis=1))
             self.test_target = torch.from_numpy(test_target.X.toarray())
-
-    def spectra(self, spectral_parameter):
-        perturb_graph_data = PerturbGraphData(self.sghv_pert_adata, self.data_name)
-
-        sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
-        sc_spectra.pre_calculate_spectra_properties(f"{self.data_path}/{self.data_name}")
-
-        sparsification_step = self.spectra_params['sparsification_step']
-        sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.01, float(sparsification_step))]
-        self.spectra_params['number_repeats'] = int(self.spectra_params['number_repeats'])
-        self.spectra_params['spectral_parameters'] = sparsification
-        self.spectra_params['data_path'] = self.data_path + "/"
-
-        if not os.path.exists(f"{self.data_path}/norman_SPECTRA_splits"):
-            sc_spectra.generate_spectra_splits(**self.spectra_params)
-
-        sp = spectral_parameter.split('_')[0]
-        rpt = spectral_parameter.split('_')[1]
-        train, test = sc_spectra.return_split_samples(sp, rpt,
-                                                      f"{self.data_path}/{self.data_name}")
-        pert_list = perturb_graph_data.samples
-
-        return train, test, pert_list
 
     def __getitem__(self, index):
         if self.stage == "train":
