@@ -1,7 +1,4 @@
 import os
-import torch
-
-import numpy as np
 
 from typing import Any, Dict, Optional
 from pertpy import data as scpert_data
@@ -9,7 +6,7 @@ from pertpy import data as scpert_data
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
-from src.utils.spectra.perturb import PerturbGraphData, SPECTRAPerturb
+from src.data.perturb_dataset import PerturbData
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
@@ -71,28 +68,10 @@ class PertDataModule(LightningDataModule):
         :param data_dir: The data directory. Defaults to `""`.
         :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "gasperini", and
         "repogle".
-        :param train_val_test_split: The train, validation and test split. Defaults to `(0.8, 0.05, 0.15)`.
         :param batch_size: The batch size. Defaults to `64`.
         :param num_workers: The number of workers. Defaults to `0`.
         :param pin_memory: Whether to pin memory. Defaults to `False`.
         """
-        # TODO [ ]: Integrate scPerturb
-        #           Procedure:
-        #           [X] Select HVGs
-        #            ------ DOES SPECTRA DO THIS? ------
-        #           [X] Randomly pair non-perturbed control cells with perturbed cells (same type)
-        #           [X] log2 transform the input and target values
-        #           [X] subtract the control from the perturbed cells to get the perturbation effect
-        #            ------ DOES SPECTRA DO THIS? ------
-        #           [X] generate SPECTRA splits
-        #           [ ] calculate foundation model embeddings for the input (control) cells
-        #           [ ] train GEARS MLP decoder for predicting perturbation effect on the embeddings
-        #           [ ] train MLP decoder for predicting perturbation effect on the embeddings
-        #           [ ] train logistic regression model for predicting perturbation effect on the embeddings
-        #           [ ] evaluate PCC -> AUSPC for perturbation effect magnitude
-        #           [ ] evaluate MCC for perturbation effect direction (predicted up/down vs true up/down)
-        # TODO [ ]: Train on one spectra train-test and process correctly
-        # TODO [ ]: Setup multirun experiment to run on all spectra train-test splits
         super().__init__()
 
         self.num_genes = None
@@ -117,6 +96,13 @@ class PertDataModule(LightningDataModule):
         self.data_val: Optional[DataLoader] = None
         self.data_test: Optional[DataLoader] = None
 
+        self.load_scpert_data = {
+            "norman": "norman_2019",
+            "gasperini": "gasperini_2019_atscale",
+            "repogle_k562": "replogle_2022_k562_gwps",
+            "repogle_rpe1": "replogle_2022_rpe1",
+        }
+
         self.batch_size_per_device = batch_size
 
         # need to call prepare and setup manually to guarantee proper model setup
@@ -133,16 +119,13 @@ class PertDataModule(LightningDataModule):
 
         Do not use it to assign state (self.x = y).
         """
-        if self.data_name in ["norman", "gasperini", "repogle"]:
-            if self.data_name == "norman":
-                scpert_data.norman_2019()
-            if self.data_name == "gasperini":
-                scpert_data.gasperini_2019_atscale()
-            if self.data_name == "repogle":
-                scpert_data.replogle_2022_k562_gwps()
+        if self.data_name in ["norman", "gasperini", "repogle_k562", "repogle_rpe1"]:
+            if f"{self.load_scpert_data[self.data_name]}.h5ad" not in os.listdir("data/"):
+                scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
+                scpert_loader()
         else:
             raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman', 'gasperini', "
-                             f"'repogle'")
+                             f"'repogle_k562', or ")
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -165,67 +148,36 @@ class PertDataModule(LightningDataModule):
 
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            adata = self.adata
-            highly_variable_genes = adata.var_names[adata.var['highly_variable']]
-            hv_pert_adata = adata[:, highly_variable_genes]
-            single_gene_mask = [True if "+" not in name else False for name in hv_pert_adata.obs['perturbation_name']]
+            scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
+            adata = scpert_loader()
 
-            sghv_pert_adata = hv_pert_adata[single_gene_mask, :]
-            sghv_pert_adata.obs['condition'] = sghv_pert_adata.obs['perturbation_name'].replace('control', 'ctrl')
-            ctrl_adata = sghv_pert_adata[sghv_pert_adata.obs['condition'] == 'ctrl', :]
-            pert_adata = sghv_pert_adata[sghv_pert_adata.obs['condition'] != 'ctrl', :]
+            train_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="train")
+            val_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="val")
+            test_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="test")
 
-            perturb_graph_data = PerturbGraphData(sghv_pert_adata, self.data_name)
+            self.data_train = DataLoader(
+                train_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=True,
+            )
+            self.data_val = DataLoader(
+                val_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=False,
+            )
+            self.data_test = DataLoader(
+                test_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=False,
+            )
 
-            sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)
-            sc_spectra.pre_calculate_spectra_properties(self.data_path)
-
-            sparsification_step = self.spectra_parameters['sparsification_step']
-            sparsification = ["{:.2f}".format(i) for i in np.arange(0, 1.05, float(sparsification_step))]
-            self.spectra_parameters.pop('sparsification_step')
-            self.spectra_parameters['number_repeats'] = int(self.spectra_parameters['number_repeats'])
-            self.spectra_parameters['spectral_parameters'] = sparsification
-            self.spectra_parameters['data_path'] = self.data_path + "/"
-
-            if not os.path.exists(f"{self.data_path}/norman_SPECTRA_splits"):
-                sc_spectra.generate_spectra_splits(**self.spectra_parameters)
-
-            sp = self.split.split('_')[0]
-            rpt = self.split.split('_')[1]
-            train, test = sc_spectra.return_split_samples(sp, rpt, f"{self.data_path}/{self.data_name}")
-            pert_list = perturb_graph_data.samples
-            pert_list_idx = [i for i in range(len(pert_list))]
-            pert_list_dict = {pert_list[i]: i for i in range(len(pert_list))}
-            train_perts = [pert_list[i] for i in train]
-            test_perts = [pert_list[i] for i in test]
-
-            train_target = pert_adata[pert_adata.obs['condition'].isin(train_perts), :]
-            test_target = pert_adata[pert_adata.obs['condition'].isin(test_perts), :]
-
-            num_perts = len(pert_list)
-
-            pert_one_hot_ref = torch.eye(num_perts)[pert_list_idx]
-
-            all_perts_train = train_target.obs['condition'].values
-            all_perts_train_idx = [pert_list_dict[pert] for pert in all_perts_train]
-
-            all_perts_test = test_target.obs['condition'].values
-            all_perts_test_idx = [pert_list_dict[pert] for pert in all_perts_test]
-
-            one_hot_perts_train = pert_one_hot_ref[torch.tensor(all_perts_train_idx)]
-            one_hot_perts_test = pert_one_hot_ref[torch.tensor(all_perts_test_idx)]
-
-            # todo
-            #  [ ] process the control data (random sampling from control data for each perturbed data)
-            #  [ ] get perturbed gene expression data targets
-            #  [ ] concat control gene expression input and one hot encoded perturbation labels
-
-            # gears implementation of sampling control: Xs = ctrl_adata[np.random.randint(0, len(ctrl_adata), num_samples), :].X.toarray()
-            train_target_x = train_target.X.toarray()
-
-            print('joe')
-
-def train_dataloader(self) -> DataLoader[Any]:
+    def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
 
         :return: The train dataloader.
@@ -269,9 +221,6 @@ def train_dataloader(self) -> DataLoader[Any]:
         :param state_dict: The datamodule state returned by `self.state_dict()`.
         """
         pass
-
-    def get_pert_data(self):
-        return self.pert_data
 
 
 if __name__ == "__main__":
