@@ -1,15 +1,12 @@
 import os
 
-from typing import Any, Dict, Optional, Tuple, Union
-from gears import PertData, GEARS
-from ruamel.yaml import YAML
+from typing import Any, Dict, Optional
+from pertpy import data as scpert_data
 
-import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader
-from torchvision.transforms import transforms
 
-from src.utils.utils import zip_data_download_wrapper
+from src.data.perturb_dataset import PerturbData
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
@@ -60,16 +57,17 @@ class PertDataModule(LightningDataModule):
             self,
             data_dir: str = DATA_DIR,
             data_name: str = "norman",
+            split: str = "0.00_0",
             batch_size: int = 64,
+            spectra_parameters: Optional[Dict[str, Any]] = None,
             num_workers: int = 0,
             pin_memory: bool = False,
     ) -> None:
         """Initialize a `PertDataModule`.
 
         :param data_dir: The data directory. Defaults to `""`.
-        :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "adamson", "dixit",
-            "replogle_k562_essential" and "replogle_rpe1_essential".
-        :param train_val_test_split: The train, validation and test split. Defaults to `(0.8, 0.05, 0.15)`.
+        :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "gasperini", and
+        "repogle".
         :param batch_size: The batch size. Defaults to `64`.
         :param num_workers: The number of workers. Defaults to `0`.
         :param pin_memory: Whether to pin memory. Defaults to `False`.
@@ -79,7 +77,11 @@ class PertDataModule(LightningDataModule):
         self.num_genes = None
         self.num_perts = None
         self.pert_data = None
+        self.pertmodule = None
+        self.adata = None
+        self.spectra_parameters = spectra_parameters
         self.data_name = data_name
+        self.split = split
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
@@ -87,9 +89,19 @@ class PertDataModule(LightningDataModule):
 
         self.data_path = os.path.join(data_dir, self.data_name)
 
+        if not os.path.exists(self.data_path):
+            os.makedirs(self.data_path)
+
         self.data_train: Optional[DataLoader] = None
         self.data_val: Optional[DataLoader] = None
         self.data_test: Optional[DataLoader] = None
+
+        self.load_scpert_data = {
+            "norman": "norman_2019",
+            "gasperini": "gasperini_2019_atscale",
+            "repogle_k562": "replogle_2022_k562_gwps",
+            "repogle_rpe1": "replogle_2022_rpe1",
+        }
 
         self.batch_size_per_device = batch_size
 
@@ -103,35 +115,17 @@ class PertDataModule(LightningDataModule):
         within. In case of multi-node training, the execution of this hook depends upon `self.prepare_data_per_node()`.
 
         Downloading:
-        Currently, supports "adamson", "norman", "dixit", "replogle_k562_essential" and "replogle_rpe1_essential"
-        datasets.
+        Currently, supports "gasperini", "norman", "repogle" datasets.
 
         Do not use it to assign state (self.x = y).
         """
-        # TODO: Add support for downloading from a specified url
-        print(f"Downloading {self.data_name} data...")
-        if os.path.exists(self.data_path):
-            print(f"Found local copy of {self.data_name} data...")
-        elif self.data_name in ['norman', 'adamson', 'dixit', 'replogle_k562_essential', 'replogle_rpe1_essential']:
-            ## load from harvard dataverse
-            if self.data_name == 'norman':
-                url = 'https://dataverse.harvard.edu/api/access/datafile/6154020'
-            elif self.data_name == 'adamson':
-                url = 'https://dataverse.harvard.edu/api/access/datafile/6154417'
-            elif self.data_name == 'dixit':
-                url = 'https://dataverse.harvard.edu/api/access/datafile/6154416'
-            elif self.data_name == 'replogle_k562_essential':
-                ## Note: This is not the complete dataset and has been filtered
-                url = 'https://dataverse.harvard.edu/api/access/datafile/7458695'
-            elif self.data_name == 'replogle_rpe1_essential':
-                ## Note: This is not the complete dataset and has been filtered
-                url = 'https://dataverse.harvard.edu/api/access/datafile/7458694'
-            zip_data_download_wrapper(url, self.data_path)
-            print(f"Successfully downloaded {self.data_name} data and saved to {self.data_path}")
+        if self.data_name in ["norman", "gasperini", "repogle_k562", "repogle_rpe1"]:
+            if f"{self.load_scpert_data[self.data_name]}.h5ad" not in os.listdir("data/"):
+                scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
+                scpert_loader()
         else:
-            raise ValueError("data_name should be either 'norman', 'adamson', 'dixit', 'replogle_k562_essential' or "
-                             "'replogle_rpe1_essential'")
-        PertData(self.data_path)
+            raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman', 'gasperini', "
+                             f"'repogle_k562', or ")
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -152,33 +146,36 @@ class PertDataModule(LightningDataModule):
                 )
             self.batch_size_per_device = self.hparams.batch_size // self.trainer.world_size
 
-        # TODO: currently this is GEARS specific. We need to make this general for final evaluation
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            pert_data = PertData(self.data_path)
-            pert_data.load(data_path=self.data_path)
-            pert_data.prepare_split(split='simulation', seed=1)
-            pert_data.get_dataloader(batch_size=self.batch_size_per_device, test_batch_size=128)
-            self.pert_data = pert_data
-            self.gene_list = pert_data.gene_names.values.tolist()
-            self.pert_list = pert_data.pert_names.tolist()
-            # calculating num_genes and num_perts for GEARS
-            self.num_genes = len(self.gene_list)
-            self.num_perts = len(self.pert_list)
-            # adding num_genes and num_perts to hydra configs
-            yaml = YAML()
-            yaml.preserve_quotes = True
-            yaml.width = 4096
-            with open(f'{ROOT_DIR}/configs/model/gears.yaml', 'r') as f:
-                yaml_data = yaml.load(f)
-            yaml_data['net']['num_genes'] = self.num_genes
-            yaml_data['net']['num_perts'] = self.num_perts
-            with open(f'{ROOT_DIR}/configs/model/gears.yaml', 'w') as f:
-                yaml.dump(yaml_data, f)
-            dataloaders = pert_data.dataloader
-            self.data_train = dataloaders['train_loader']
-            self.data_val = dataloaders['val_loader']
-            self.data_test = dataloaders['test_loader']
+            scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
+            adata = scpert_loader()
+
+            train_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="train")
+            val_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="val")
+            test_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="test")
+
+            self.data_train = DataLoader(
+                train_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=True,
+            )
+            self.data_val = DataLoader(
+                val_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=False,
+            )
+            self.data_test = DataLoader(
+                test_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=False,
+            )
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
@@ -224,9 +221,6 @@ class PertDataModule(LightningDataModule):
         :param state_dict: The datamodule state returned by `self.state_dict()`.
         """
         pass
-
-    def get_pert_data(self):
-        return self.pert_data
 
 
 if __name__ == "__main__":
