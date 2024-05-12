@@ -1,6 +1,7 @@
 import torch
 
 import numpy as np
+import scanpy as sc
 
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
@@ -68,6 +69,11 @@ class PerturbData(Dataset):
             self.val_target = torch.from_numpy(val_targets)
             self.X_test = torch.from_numpy(np.concatenate((test_input_expr, one_hot_perts_test), axis=1))
             self.test_target = torch.from_numpy(test_target.X.toarray())
+
+        if self.data_name == "repogle_rpe1":
+            adata.layers["counts"] = adata.X.copy()
+            sc.pp.normalize_total(adata)
+            sc.pp.log1p(adata)
 
     def __getitem__(self, index):
         if self.stage == "train":
