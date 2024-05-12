@@ -99,7 +99,7 @@ class PertDataModule(LightningDataModule):
         self.load_scpert_data = {
             "norman": "norman_2019",
             "gasperini": "gasperini_2019_atscale",
-            "repogle_k562": "replogle_2022_k562_gwps",
+            "repogle_k562": "replogle_2022_k562_essential",
             "repogle_rpe1": "replogle_2022_rpe1",
         }
 
@@ -115,11 +115,11 @@ class PertDataModule(LightningDataModule):
         within. In case of multi-node training, the execution of this hook depends upon `self.prepare_data_per_node()`.
 
         Downloading:
-        Currently, supports "gasperini", "norman", "repogle_k562, repogle_rpe1" datasets.
+        Currently, supports "norman", "repogle_k562, repogle_rpe1" datasets.
 
         Do not use it to assign state (self.x = y).
         """
-        if self.data_name in ["norman", "gasperini", "repogle_k562", "repogle_rpe1"]:
+        if self.data_name in ["norman", "repogle_k562", "repogle_rpe1"]:
             if f"{self.load_scpert_data[self.data_name]}.h5ad" not in os.listdir("data/"):
                 scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
                 scpert_loader()
