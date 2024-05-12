@@ -115,7 +115,7 @@ class PertDataModule(LightningDataModule):
         within. In case of multi-node training, the execution of this hook depends upon `self.prepare_data_per_node()`.
 
         Downloading:
-        Currently, supports "gasperini", "norman", "repogle" datasets.
+        Currently, supports "gasperini", "norman", "repogle_k562, repogle_rpe1" datasets.
 
         Do not use it to assign state (self.x = y).
         """
