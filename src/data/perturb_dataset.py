@@ -21,13 +21,17 @@ class PerturbData(Dataset):
             hv_pert_adata = adata[:, highly_variable_genes]
 
             single_gene_mask = [True if "+" not in name else False for name in hv_pert_adata.obs['perturbation_name']]
-            self.sghv_pert_adata = hv_pert_adata[single_gene_mask, :]
-            self.sghv_pert_adata.obs['condition'] = self.sghv_pert_adata.obs['perturbation_name'].replace('control', 'ctrl')
+            sghv_pert_adata = hv_pert_adata[single_gene_mask, :]
+            sghv_pert_adata.obs['condition'] = sghv_pert_adata.obs['perturbation_name'].replace('control', 'ctrl')
 
-            ctrl_adata = self.sghv_pert_adata[self.sghv_pert_adata.obs['condition'] == 'ctrl', :]
-            pert_adata = self.sghv_pert_adata[self.sghv_pert_adata.obs['condition'] != 'ctrl', :]
+            ctrl_adata = sghv_pert_adata[sghv_pert_adata.obs['condition'] == 'ctrl', :]
+            pert_adata = sghv_pert_adata[sghv_pert_adata.obs['condition'] != 'ctrl', :]
 
-            train, test, pert_list = get_splits.spectra(spectral_parameter)
+            train, test, pert_list = get_splits.spectra(sghv_pert_adata,
+                                                        self.data_path,
+                                                        self.spectra_params,
+                                                        spectral_parameter
+                                                        )
 
             pert_list_idx = [i for i in range(len(pert_list))]
             pert_list_dict = {pert_list[i]: i for i in range(len(pert_list))}
@@ -74,6 +78,9 @@ class PerturbData(Dataset):
             adata.layers["counts"] = adata.X.copy()
             sc.pp.normalize_total(adata)
             sc.pp.log1p(adata)
+            sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
+            sghv_pert_adata = adata[:, adata.var['highly_variable']]
+            print('joe')
 
     def __getitem__(self, index):
         if self.stage == "train":
