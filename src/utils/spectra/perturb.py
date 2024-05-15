@@ -17,7 +17,7 @@ class PerturbGraphData(SpectraDataset):
 
     def get_mean_logfold_change(self, perturbation):
         perturbation_expression = self.adata[self.adata.obs['condition'] == perturbation].X.toarray().mean(axis=0)
-        logfold_change = np.nan_to_num(np.log2(perturbation_expression + 1) - np.log2(self.control_expression + 1))
+        logfold_change = np.nan_to_num(perturbation_expression - self.control_expression)
         return logfold_change
 
     def sample_to_index(self, sample):
