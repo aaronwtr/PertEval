@@ -20,6 +20,10 @@ def spectra(sghv_pert_data, data_path, spectra_params, spectral_parameter):
 
     if not os.path.exists(f"{data_path}/norman_SPECTRA_splits"):
         sc_spectra.generate_spectra_splits(**spectra_params)
+    elif not os.listdir(f"{data_path}/norman_SPECTRA_splits"):
+        sc_spectra.generate_spectra_splits(**spectra_params)
+    else:
+        print("Splits already exist. Proceeding. . .")
 
     sp = spectral_parameter.split('_')[0]
     rpt = spectral_parameter.split('_')[1]
