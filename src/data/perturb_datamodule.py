@@ -98,7 +98,6 @@ class PertDataModule(LightningDataModule):
 
         self.load_scpert_data = {
             "norman": "norman_2019",
-            "gasperini": "gasperini_2019_atscale",
             "repogle_k562": "replogle_2022_k562_essential",
             "repogle_rpe1": "replogle_2022_rpe1",
         }
@@ -124,8 +123,8 @@ class PertDataModule(LightningDataModule):
                 scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
                 scpert_loader()
         else:
-            raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman', 'gasperini', "
-                             f"'repogle_k562', or ")
+            raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman', "
+                             f"'repogle_k562', or repogle_rpe1")
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
