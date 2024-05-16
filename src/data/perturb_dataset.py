@@ -1,9 +1,11 @@
 import torch
 import os
 import anndata
+import gzip
 
 import numpy as np
 import scanpy as sc
+import pickle as pkl
 
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
@@ -40,9 +42,12 @@ class PerturbData(Dataset):
             print(f"Norman dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
 
             pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
+            all_perts = pert_adata.obs['condition'].to_list()
 
             if not os.path.exists(f"{self.data_path}/full_{self.data_name}_filtered.h5ad"):
                 sg_pert_adata.write(f"{self.data_path}/full_{self.data_name}_filtered.h5ad")
+                with open(f"{self.data_path}/all_perts.pkl", 'wb') as f:
+                    pkl.dump(all_perts, f)
 
             if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_filtered.h5ad"):
                 ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
@@ -107,7 +112,6 @@ class PerturbData(Dataset):
             self.test_target = torch.from_numpy(test_target.X.toarray())
 
         if self.data_name == "repogle_rpe1":
-            # TODO: filter on HVGs after saving!!
             if not os.path.exists(f"{self.data_path}/{self.data_name}_filtered.h5ad"):
                 adata.layers["counts"] = adata.X.copy()
                 sc.pp.normalize_total(adata)
@@ -116,22 +120,36 @@ class PerturbData(Dataset):
             else:
                 adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_filtered.h5ad")
 
-            sghv_pert_adata = adata[:, adata.var['highly_variable']]
-            sghv_pert_adata.obs['condition'] = sghv_pert_adata.obs['perturbation'].replace('control', 'ctrl')
+            adata.obs['condition'] = adata.obs['perturbation'].replace('control', 'ctrl')
 
-            ctrl_adata = sghv_pert_adata[sghv_pert_adata.obs['condition'] == 'ctrl', :]
-            pert_adata = sghv_pert_adata[sghv_pert_adata.obs['condition'] != 'ctrl', :]
+            genes = adata.var.index.to_list()
+            genes_and_ctrl = genes + ['ctrl']
 
-            # sample 1000 cells from the sghv_pert_adata
-            sghv_pert_adata = sghv_pert_adata[np.random.choice(sghv_pert_adata.shape[0], 100, replace=False), :]
+            # we remove the cells with perts that are not in the genes because we need gene expression values
+            # to generate an in-silico perturbation embedding
+            sg_pert_adata = adata[adata.obs['condition'].isin(genes_and_ctrl), :]
 
-            train, test, pert_list = get_splits.spectra(sghv_pert_adata,
+            ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
+            pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
+
+            # unique_perts = sg_pert_adata.obs['condition'].unique().tolist()
+            #
+            # sampled_cells = []
+            #
+            # for pert in unique_perts:
+            #     pert_data = sg_pert_adata[sg_pert_adata.obs['condition'] == pert]
+            #     sampled_cells.append(pert_data[np.random.choice(pert_data.shape[0], 1, replace=False), :])
+            #
+            # sg_pert_adata = anndata.concat(sampled_cells)
+
+            train, test, pert_list = get_splits.spectra(sg_pert_adata,
                                                         self.data_path,
                                                         self.spectra_params,
                                                         spectral_parameter
                                                         )
 
             # sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
+            # sghv_pert_adata = adata[:, adata.var['highly_variable']]
 
             print('joe')
 
