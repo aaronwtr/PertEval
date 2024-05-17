@@ -98,8 +98,8 @@ class PertDataModule(LightningDataModule):
 
         self.load_scpert_data = {
             "norman": "norman_2019",
-            "repogle_k562": "replogle_2022_k562_essential",
-            "repogle_rpe1": "replogle_2022_rpe1",
+            "replogle_k562": "replogle_2022_k562_essential",
+            "replogle_rpe1": "replogle_2022_rpe1",
         }
 
         self.batch_size_per_device = batch_size
@@ -114,17 +114,17 @@ class PertDataModule(LightningDataModule):
         within. In case of multi-node training, the execution of this hook depends upon `self.prepare_data_per_node()`.
 
         Downloading:
-        Currently, supports "norman", "repogle_k562, repogle_rpe1" datasets.
+        Currently, supports "norman", "replogle_k562, replogle_rpe1" datasets.
 
         Do not use it to assign state (self.x = y).
         """
-        if self.data_name in ["norman", "repogle_k562", "repogle_rpe1"]:
+        if self.data_name in ["norman", "replogle_k562", "replogle_rpe1"]:
             if f"{self.load_scpert_data[self.data_name]}.h5ad" not in os.listdir("data/"):
                 scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
                 scpert_loader()
         else:
             raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman', "
-                             f"'repogle_k562', or repogle_rpe1")
+                             f"'replogle_k562', or replogle_rpe1")
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.

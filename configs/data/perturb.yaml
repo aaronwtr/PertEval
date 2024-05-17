@@ -1,6 +1,6 @@
 _target_: src.data.perturb_datamodule.PertDataModule
 data_dir: ${paths.data_dir}
-data_name: "repogle_rpe1"
+data_name: "repogle_k562"
 batch_size: 32 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
 spectra_parameters:
   'number_repeats': 3

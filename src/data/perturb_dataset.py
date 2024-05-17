@@ -1,7 +1,6 @@
 import torch
 import os
 import anndata
-import gzip
 
 import numpy as np
 import scanpy as sc
@@ -18,6 +17,7 @@ class PerturbData(Dataset):
     def __init__(self, adata, data_path, spectral_parameter, spectra_params, stage):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
+        self.spectral_parameter = spectral_parameter
         self.spectra_params = spectra_params
         self.stage = stage
 
@@ -36,7 +36,7 @@ class PerturbData(Dataset):
             train, test, pert_list = get_splits.spectra(sg_pert_adata,
                                                         self.data_path,
                                                         self.spectra_params,
-                                                        spectral_parameter
+                                                        self.spectral_parameter
                                                         )
 
             print(f"Norman dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
@@ -111,47 +111,49 @@ class PerturbData(Dataset):
             self.X_test = torch.from_numpy(np.concatenate((test_input_expr, one_hot_perts_test), axis=1))
             self.test_target = torch.from_numpy(test_target.X.toarray())
 
-        if self.data_name == "repogle_rpe1":
-            if not os.path.exists(f"{self.data_path}/{self.data_name}_filtered.h5ad"):
-                adata.layers["counts"] = adata.X.copy()
-                sc.pp.normalize_total(adata)
-                sc.pp.log1p(adata)
-                adata.write(f"{self.data_path}/{self.data_name}_filtered.h5ad", compression='gzip')
-            else:
-                adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_filtered.h5ad")
-
-            adata.obs['condition'] = adata.obs['perturbation'].replace('control', 'ctrl')
-
-            genes = adata.var.index.to_list()
-            genes_and_ctrl = genes + ['ctrl']
-
-            # we remove the cells with perts that are not in the genes because we need gene expression values
-            # to generate an in-silico perturbation embedding
-            sg_pert_adata = adata[adata.obs['condition'].isin(genes_and_ctrl), :]
-
-            ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
-            pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
-
-            # unique_perts = sg_pert_adata.obs['condition'].unique().tolist()
-            #
-            # sampled_cells = []
-            #
-            # for pert in unique_perts:
-            #     pert_data = sg_pert_adata[sg_pert_adata.obs['condition'] == pert]
-            #     sampled_cells.append(pert_data[np.random.choice(pert_data.shape[0], 1, replace=False), :])
-            #
-            # sg_pert_adata = anndata.concat(sampled_cells)
-
-            train, test, pert_list = get_splits.spectra(sg_pert_adata,
-                                                        self.data_path,
-                                                        self.spectra_params,
-                                                        spectral_parameter
-                                                        )
+        if self.data_name == "replogle_rpe1":
+            ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
 
             # sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
             # sghv_pert_adata = adata[:, adata.var['highly_variable']]
 
             print('joe')
+
+        if self.data_name == "replogle_k562":
+            ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
+
+            # sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
+            # sghv_pert_adata = adata[:, adata.var['highly_variable']]
+
+            print('joe')
+
+    def preprocess_replogle(self, adata):
+        if not os.path.exists(f"{self.data_path}/{self.data_name}_filtered.h5ad"):
+            adata.layers["counts"] = adata.X.copy()
+            sc.pp.normalize_total(adata)
+            sc.pp.log1p(adata)
+            adata.write(f"{self.data_path}/{self.data_name}_filtered.h5ad", compression='gzip')
+        else:
+            adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_filtered.h5ad")
+
+        adata.obs['condition'] = adata.obs['perturbation'].replace('control', 'ctrl')
+
+        genes = adata.var.index.to_list()
+        genes_and_ctrl = genes + ['ctrl']
+
+        # we remove the cells with perts that are not in the genes because we need gene expression values
+        # to generate an in-silico perturbation embedding
+        sg_pert_adata = adata[adata.obs['condition'].isin(genes_and_ctrl), :]
+
+        ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
+        pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
+
+        train, test, pert_list = get_splits.spectra(sg_pert_adata,
+                                                    self.data_path,
+                                                    self.spectra_params,
+                                                    self.spectral_parameter
+                                                    )
+        return ctrl_adata, pert_adata, train, test, pert_list
 
     def __getitem__(self, index):
         if self.stage == "train":
