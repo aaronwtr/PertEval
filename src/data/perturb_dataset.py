@@ -42,6 +42,84 @@ class PerturbData(Dataset):
             print(f"Norman dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
 
             pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
+            all_perts = list(set(pert_adata.obs['condition'].to_list()))
+
+            if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_filtered.h5ad"):
+                ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
+                ctrl_X = ctrl_adata.X.toarray()
+                basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
+                subset_size = 500
+
+                for cell in tqdm(range(pert_adata.shape[0])):
+                    subset = ctrl_X[np.random.choice(ctrl_X.shape[0], subset_size), :]
+                    basal_ctrl_X[cell, :] = subset.mean(axis=0)
+
+                basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
+
+                # noinspection PyTypeChecker
+                basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_filtered.h5ad")
+            else:
+                basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_filtered.h5ad")
+
+            control_genes = basal_ctrl_adata.var.index.to_list()
+            pert_genes = pert_adata.var.index.to_list()
+            assert control_genes == pert_genes, ("Watch out! Genes in control and perturbation datasets are not the"
+                                                 " same, or are not indexed the same.")
+
+            train_perts = [pert_list[i] for i in train]
+            test_perts = [pert_list[i] for i in test]
+
+            highly_variable_genes = pert_adata.var_names[adata.var['highly_variable']]
+            hv_pert_adata = pert_adata[:, highly_variable_genes]
+
+            train_target = hv_pert_adata[hv_pert_adata.obs['condition'].isin(train_perts), :]
+            test_target = hv_pert_adata[hv_pert_adata.obs['condition'].isin(test_perts), :]
+
+            all_perts_train = train_target.obs['condition'].values
+            all_perts_test = test_target.obs['condition'].values
+
+            perts_idx = {}
+            for pert in all_perts:
+                perts_idx[pert] = pert_genes.index(pert)
+
+            num_ctrl_cells = basal_ctrl_adata.shape[0]
+            num_train_cells = train_target.shape[0]
+            num_test_cells = test_target.shape[0]
+            num_genes = basal_ctrl_adata.shape[1]
+
+            one_hot_perts_train = np.zeros((num_train_cells, num_genes))
+            for i, pert in enumerate(all_perts_train):
+                one_hot_perts_train[i, perts_idx[pert]] = 1
+
+            one_hot_perts_test = np.zeros((num_test_cells, num_genes))
+            for i, pert in enumerate(all_perts_test):
+                one_hot_perts_test[i, perts_idx[pert]] = 1
+
+            train_input_expr = basal_ctrl_adata[np.random.randint(0, num_ctrl_cells, num_train_cells), :].X.toarray()
+            test_input_expr = basal_ctrl_adata[np.random.randint(0, num_ctrl_cells, num_test_cells), :].X.toarray()
+
+            raw_X_train = np.concatenate((train_input_expr, one_hot_perts_train), axis=1)
+            raw_train_target = train_target.X.toarray()
+
+            X_train, X_val, train_targets, val_targets = train_test_split(raw_X_train,
+                                                                          raw_train_target,
+                                                                          test_size=0.2)
+            self.X_train = torch.from_numpy(X_train)
+            self.train_target = torch.from_numpy(train_targets)
+            self.X_val = torch.from_numpy(X_val)
+            self.val_target = torch.from_numpy(val_targets)
+            self.X_test = torch.from_numpy(np.concatenate((test_input_expr, one_hot_perts_test), axis=1))
+            self.test_target = torch.from_numpy(test_target.X.toarray())
+
+        if self.data_name == "replogle_rpe1":
+            ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
+
+            # sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
+            # sghv_pert_adata = adata[:, adata.var['highly_variable']]
+
+            print(f"Norman dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
+
+            pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
             all_perts = pert_adata.obs['condition'].to_list()
 
             if not os.path.exists(f"{self.data_path}/full_{self.data_name}_filtered.h5ad"):
@@ -71,59 +149,11 @@ class PerturbData(Dataset):
             train_perts = [pert_list[i] for i in train]
             test_perts = [pert_list[i] for i in test]
 
-            # todo: predict just on HVGs. That is output will be of size (num_cells, num_HVGs)
-            highly_variable_genes = adata.var_names[adata.var['highly_variable']]
-            hv_pert_adata = adata[:, highly_variable_genes]
-
-            train_target = pert_adata[pert_adata.obs['condition'].isin(train_perts), :]
-            test_target = pert_adata[pert_adata.obs['condition'].isin(test_perts), :]
-
-            num_perts = len(pert_list)
-
-            pert_one_hot_ref = torch.eye(num_perts)[pert_list_idx]
-
-            all_perts_train = train_target.obs['condition'].values
-            all_perts_train_idx = [pert_list_dict[pert] for pert in all_perts_train]
-
-            all_perts_test = test_target.obs['condition'].values
-            all_perts_test_idx = [pert_list_dict[pert] for pert in all_perts_test]
-
-            one_hot_perts_train = pert_one_hot_ref[torch.tensor(all_perts_train_idx)]
-            one_hot_perts_test = pert_one_hot_ref[torch.tensor(all_perts_test_idx)]
-
-            num_train_cells = one_hot_perts_train.shape[0]
-            num_test_cells = one_hot_perts_test.shape[0]
-            num_ctrl_cells = basal_ctrl_adata.shape[0]
-
-            train_input_expr = basal_ctrl_adata[np.random.randint(0, num_ctrl_cells, num_train_cells), :].X.toarray()
-            test_input_expr = basal_ctrl_adata[np.random.randint(0, num_ctrl_cells, num_test_cells), :].X.toarray()
-
-            raw_X_train = np.concatenate((train_input_expr, one_hot_perts_train), axis=1)
-            raw_train_target = train_target.X.toarray()
-
-            X_train, X_val, train_targets, val_targets = train_test_split(raw_X_train,
-                                                                          raw_train_target,
-                                                                          test_size=0.2)
-            self.X_train = torch.from_numpy(X_train)
-            self.train_target = torch.from_numpy(train_targets)
-            self.X_val = torch.from_numpy(X_val)
-            self.val_target = torch.from_numpy(val_targets)
-            self.X_test = torch.from_numpy(np.concatenate((test_input_expr, one_hot_perts_test), axis=1))
-            self.test_target = torch.from_numpy(test_target.X.toarray())
-
-        if self.data_name == "replogle_rpe1":
-            ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
-
-            # sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
-            # sghv_pert_adata = adata[:, adata.var['highly_variable']]
-
-            print('joe')
-
         if self.data_name == "replogle_k562":
             ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
 
             # sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
-            # sghv_pert_adata = adata[:, adata.var['highly_variable']]
+            # sghv_pert_adata = adata[:, data.var['highly_variable']]
 
             print('joe')
 
