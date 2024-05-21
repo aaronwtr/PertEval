@@ -21,6 +21,8 @@ class PerturbData(Dataset):
         self.spectra_params = spectra_params
         self.stage = stage
 
+        # todo: calculate correlation vector for each perturbation
+
         if self.data_name == "norman":
             single_gene_mask = [True if "+" not in name else False for name in adata.obs['perturbation_name']]
             sg_pert_adata = adata[single_gene_mask, :]
@@ -58,6 +60,8 @@ class PerturbData(Dataset):
 
                 # noinspection PyTypeChecker
                 basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_filtered.h5ad")
+                with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
+                    pkl.dump(all_perts, f)
             else:
                 basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_filtered.h5ad")
 
@@ -114,21 +118,11 @@ class PerturbData(Dataset):
         if self.data_name == "replogle_rpe1":
             ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
 
-            # sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
-            # sghv_pert_adata = adata[:, adata.var['highly_variable']]
+            print(f"Replogle RPE1 dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
 
-            print(f"Norman dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
-
-            pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
             all_perts = pert_adata.obs['condition'].to_list()
 
-            if not os.path.exists(f"{self.data_path}/full_{self.data_name}_filtered.h5ad"):
-                sg_pert_adata.write(f"{self.data_path}/full_{self.data_name}_filtered.h5ad")
-                with open(f"{self.data_path}/all_perts.pkl", 'wb') as f:
-                    pkl.dump(all_perts, f)
-
             if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_filtered.h5ad"):
-                ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
                 ctrl_X = ctrl_adata.X.toarray()
                 basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
                 subset_size = 500
@@ -144,18 +138,64 @@ class PerturbData(Dataset):
             else:
                 basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_filtered.h5ad")
 
-            pert_list_idx = [i for i in range(len(pert_list))]
-            pert_list_dict = {pert_list[i]: i for i in range(len(pert_list))}
+            control_genes = basal_ctrl_adata.var.index.to_list()
+            pert_genes = pert_adata.var.index.to_list()
+            assert control_genes == pert_genes, ("Watch out! Genes in control and perturbation datasets are not the"
+                                                 " same, or are not indexed the same.")
+
             train_perts = [pert_list[i] for i in train]
             test_perts = [pert_list[i] for i in test]
+
+            sc.pp.highly_variable_genes(pert_adata, n_top_genes=5000)
+            highly_variable_genes = pert_adata.var_names[pert_adata.var['highly_variable']]
+            hv_pert_adata = pert_adata[:, highly_variable_genes]
+
+            train_target = hv_pert_adata[hv_pert_adata.obs['condition'].isin(train_perts), :]
+            test_target = hv_pert_adata[hv_pert_adata.obs['condition'].isin(test_perts), :]
+
+            all_perts_train = train_target.obs['condition'].values
+            all_perts_test = test_target.obs['condition'].values
+
+            perts_idx = {}
+            for pert in all_perts:
+                perts_idx[pert] = pert_genes.index(pert)
+
+            num_ctrl_cells = basal_ctrl_adata.shape[0]
+            num_train_cells = train_target.shape[0]
+            num_test_cells = test_target.shape[0]
+            num_genes = basal_ctrl_adata.shape[1]
+
+            # one_hot_perts_train = np.zeros((num_train_cells, num_genes))
+            # for i, pert in enumerate(all_perts_train):
+            #     one_hot_perts_train[i, perts_idx[pert]] = 1
+            #
+            # one_hot_perts_test = np.zeros((num_test_cells, num_genes))
+            # for i, pert in enumerate(all_perts_test):
+            #     one_hot_perts_test[i, perts_idx[pert]] = 1
+            #
+            # train_input_expr = basal_ctrl_adata[np.random.randint(0, num_ctrl_cells, num_train_cells), :].X.toarray()
+            # test_input_expr = basal_ctrl_adata[np.random.randint(0, num_ctrl_cells, num_test_cells), :].X.toarray()
+            #
+            # raw_X_train = np.concatenate((train_input_expr, one_hot_perts_train), axis=1)
+            # raw_train_target = train_target.X.toarray()
+            #
+            # X_train, X_val, train_targets, val_targets = train_test_split(raw_X_train,
+            #                                                               raw_train_target,
+            #                                                               test_size=0.2)
+            # self.X_train = torch.from_numpy(X_train)
+            # self.train_target = torch.from_numpy(train_targets)
+            # self.X_val = torch.from_numpy(X_val)
+            # self.val_target = torch.from_numpy(val_targets)
+            # self.X_test = torch.from_numpy(np.concatenate((test_input_expr, one_hot_perts_test), axis=1))
+            # self.test_target = torch.from_numpy(test_target.X.toarray())
+
+            print('joe')
 
         if self.data_name == "replogle_k562":
             ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
 
             # sc.pp.highly_variable_genes(adata, inplace=True, n_top_genes=5000)
             # sghv_pert_adata = adata[:, data.var['highly_variable']]
-
-            print('joe')
 
     def preprocess_replogle(self, adata):
         if not os.path.exists(f"{self.data_path}/{self.data_name}_filtered.h5ad"):
@@ -177,6 +217,11 @@ class PerturbData(Dataset):
 
         ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
         pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
+        all_perts = list(set(pert_adata.obs['condition'].to_list()))
+
+        if not os.path.exists(f"{self.data_path}/all_perts.pkl"):
+            with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
+                pkl.dump(all_perts, f)
 
         train, test, pert_list = get_splits.spectra(sg_pert_adata,
                                                     self.data_path,
