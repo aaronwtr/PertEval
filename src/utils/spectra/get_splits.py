@@ -18,9 +18,9 @@ def spectra(sghv_pert_data, data_path, spectra_params, spectral_parameter):
     spectra_params['spectral_parameters'] = sparsification
     spectra_params['data_path'] = data_path + "/"
 
-    if not os.path.exists(f"{data_path}/norman_SPECTRA_splits"):
+    if not os.path.exists(f"{data_path}/{data_name}_SPECTRA_splits"):
         sc_spectra.generate_spectra_splits(**spectra_params)
-    elif not os.listdir(f"{data_path}/norman_SPECTRA_splits"):
+    elif not os.listdir(f"{data_path}/{data_name}_SPECTRA_splits"):
         sc_spectra.generate_spectra_splits(**spectra_params)
     else:
         print("Splits already exist. Proceeding. . .")
