@@ -97,7 +97,7 @@ class PertDataModule(LightningDataModule):
         self.data_test: Optional[DataLoader] = None
 
         self.load_scpert_data = {
-            "norman": "norman_2019",
+            "norman": "norman_2019_raw",
             "replogle_k562": "replogle_2022_k562_essential",
             "replogle_rpe1": "replogle_2022_rpe1",
         }
