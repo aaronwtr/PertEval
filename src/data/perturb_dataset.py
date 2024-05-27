@@ -17,7 +17,7 @@ from src.utils.spectra import get_splits
 
 
 class PerturbData(Dataset):
-    def __init__(self, adata, data_path, spectral_parameter, spectra_params, stage):
+    def __init__(self, adata, data_path, spectral_parameter, spectra_params, stage, **kwargs):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
         self.spectral_parameter = spectral_parameter
