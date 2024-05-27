@@ -91,35 +91,49 @@ class PerturbData(Dataset):
 
         num_cells = ctrl_adata.shape[0]
         num_perts = len(all_perts)
-        mask = np.zeros((num_cells, num_perts), dtype=bool)
 
-        for i, pert in enumerate(all_perts):
-            pert_idx = genes.index(pert)
-            non_zero_indices = ctrl_adata[:, pert_idx].X.sum(axis=1).nonzero()[0]
-            num_non_zeroes = len(non_zero_indices)
+        # generate embedding mask for the perturbable genes with nonzero expression values
+        if not os.path.exists(f"{self.data_path}/norman_mask_df.pkl"):
+            mask = np.zeros((num_cells, num_perts), dtype=bool)
 
-            if len(non_zero_indices) < 500:
-                sample_num = num_non_zeroes
-            else:
-                sample_num = 500
+            for i, pert in enumerate(all_perts):
+                pert_idx = genes.index(pert)
+                non_zero_indices = ctrl_adata[:, pert_idx].X.sum(axis=1).nonzero()[0]
+                num_non_zeroes = len(non_zero_indices)
 
-            sampled_indices = np.random.choice(non_zero_indices, sample_num, replace=False)
+                if len(non_zero_indices) < 500:
+                    sample_num = num_non_zeroes
+                else:
+                    sample_num = 500
 
-            mask[sampled_indices, i] = True
+                sampled_indices = np.random.choice(non_zero_indices, sample_num, replace=False)
 
-        mask_df = pd.DataFrame(mask, columns=all_perts)
+                mask[sampled_indices, i] = True
 
-        mask_df.to_pickle(f"{self.data_path}/norman_mask_df.pkl")
+            mask_df = pd.DataFrame(mask, columns=all_perts)
+            mask_df.to_pickle(f"{self.data_path}/norman_mask_df.pkl")
+
+        gene_to_ensg = dict(zip(sg_pert_adata.var['gene_symbols'], sg_pert_adata.var_names))
 
         if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
             ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
             ctrl_adata_raw = ctrl_adata.copy()
-            if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_filtered.h5ad"):
-                sc.pp.normalize_total(ctrl_adata)
-                sc.pp.log1p(ctrl_adata)
-                ctrl_adata.write(f"{self.data_path}/{self.data_name}_pp_filtered.h5ad", compression='gzip')
-            else:
-                ctrl_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_filtered.h5ad")
+            if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
+                sc.pp.normalize_total(sg_pert_adata)
+                sc.pp.log1p(sg_pert_adata)
+                sc.pp.highly_variable_genes(sg_pert_adata, n_top_genes=2000)
+                highly_variable_genes = sg_pert_adata.var_names[sg_pert_adata.var['highly_variable']]
+
+                unique_perts_ensg = [gene_to_ensg[pert] for pert in unique_perts]
+                missing_perts = list(set(unique_perts_ensg) - set(highly_variable_genes))
+                combined_genes = list(set(highly_variable_genes) | set(missing_perts))
+                sg_hvg_adata = sg_pert_adata[:, combined_genes]
+
+                ctrl_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] == 'ctrl', :]
+                pert_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] != 'ctrl', :]
+
+                ctrl_adata.write(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad", compression='gzip')
+                pert_adata.write(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad", compression='gzip')
 
             ctrl_X = ctrl_adata.X.toarray()
             ctrl_count_raw = ctrl_adata_raw.X.toarray()
