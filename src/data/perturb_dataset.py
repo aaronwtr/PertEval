@@ -116,23 +116,19 @@ class PerturbData(Dataset):
         gene_to_ensg = dict(zip(sg_pert_adata.var['gene_symbols'], sg_pert_adata.var_names))
 
         if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
-            ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
             pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
-            ctrl_adata_raw = ctrl_adata.copy()
-            pert_adata_raw = pert_adata.copy()
 
             # save control_data_raw for inference with scFMs and pert_data for contextual alignment experiment
             if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
                 ctrl_adata.write(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad", compression='gzip')
             if not os.path.exists(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad"):
-                pert_adata_raw.write(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad", compression='gzip')
+                pert_adata.write(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad", compression='gzip')
 
             if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
                 sc.pp.normalize_total(sg_pert_adata)
                 sc.pp.log1p(sg_pert_adata)
                 sc.pp.highly_variable_genes(sg_pert_adata, n_top_genes=2000)
                 highly_variable_genes = sg_pert_adata.var_names[sg_pert_adata.var['highly_variable']]
-
                 unique_perts_ensg = [gene_to_ensg[pert] for pert in unique_perts]
                 missing_perts = list(set(unique_perts_ensg) - set(highly_variable_genes))
                 combined_genes = list(set(highly_variable_genes) | set(missing_perts))
@@ -145,17 +141,12 @@ class PerturbData(Dataset):
                 pert_adata.write(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad", compression='gzip')
 
             ctrl_X = ctrl_adata.X.toarray()
-            ctrl_count_raw = ctrl_adata_raw.X.toarray()
-
             basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
-            basal_ctrl_counts = np.zeros((pert_adata.shape[0], ctrl_count_raw.shape[1]))
             subset_size = 500
 
             for cell in tqdm(range(pert_adata.shape[0])):
                 subset_X = ctrl_X[np.random.choice(ctrl_X.shape[0], subset_size), :]
-                subset_counts = ctrl_count_raw[np.random.choice(ctrl_count_raw.shape[0], subset_size), :]
                 basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
-                basal_ctrl_counts[cell, :] = subset_counts.mean(axis=0)
 
             basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
 
