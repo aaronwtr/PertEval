@@ -11,6 +11,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+from hydra.errors import HydraException
 
 from src.utils.spectra import get_splits
 
@@ -23,17 +24,31 @@ class PerturbData(Dataset):
         self.spectra_params = spectra_params
         self.stage = stage
 
-        if self.data_name == "norman":
-            if not os.path.exists(f"{self.data_path}/train_data.gz"):
-                pp_data = self.preprocess_and_featurise_norman(adata)
-                self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target = pp_data
-            else:
-                with gzip.open(f"{self.data_path}/train_data.gz", "rb") as f:
-                    self.X_train, self.train_target = pkl.load(f)
-                with gzip.open(f"{self.data_path}/val_data.gz", "rb") as f:
-                    self.X_val, self.val_target = pkl.load(f)
-                with gzip.open(f"{self.data_path}/test_data.gz", "rb") as f:
-                    self.X_test, self.test_target = pkl.load(f)
+        self.multirun = False
+        if type(self.spectral_parameter) is not str:
+            self.multirun = True
+            split_files = os.listdir(f"{self.data_path}/input_features/")
+            split_files = [file for file in split_files if "train_data" in file]
+            sps = []
+            for file in split_files:
+                sp = file.split('_')
+                sp = sp[2]
+                sp = sp.split('.p')[0]
+                if sp == "{:.2f}".format(self.spectral_parameter):
+                    sps.append(sp)
+            repl = len(sps)
+            self.spectral_parameter = "{:.2f}_{}".format(self.spectral_parameter, repl)
+
+        if not os.path.exists(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz"):
+            pp_data = self.preprocess_and_featurise_norman(adata)
+            self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target = pp_data
+        else:
+            with gzip.open(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                self.X_train, self.train_target = pkl.load(f)
+            with gzip.open(f"{self.data_path}/input_features/val_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                self.X_val, self.val_target = pkl.load(f)
+            with gzip.open(f"{self.data_path}/input_features/test_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                self.X_test, self.test_target = pkl.load(f)
 
         if self.data_name == "replogle_rpe1":
             ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
@@ -47,15 +62,15 @@ class PerturbData(Dataset):
         nonzero_genes = (adata.X.sum(axis=0) > 5).A1
         filtered_adata = adata[:, nonzero_genes]
         single_gene_mask = [True if "," not in name else False for name in adata.obs['guide_ids']]
-        sg_pert_adata = filtered_adata[single_gene_mask, :]
-        sg_pert_adata.obs['condition'] = sg_pert_adata.obs['guide_ids'].replace('', 'ctrl')
+        sg_adata = filtered_adata[single_gene_mask, :]
+        sg_adata.obs['condition'] = sg_adata.obs['guide_ids'].replace('', 'ctrl')
 
-        genes = sg_pert_adata.var['gene_symbols'].to_list()
+        genes = sg_adata.var['gene_symbols'].to_list()
         genes_and_ctrl = genes + ['ctrl']
 
         # we remove the cells with perts that are not in the genes because we need gene expression values
         # to generate an in-silico perturbation embedding
-        sg_pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'].isin(genes_and_ctrl), :]
+        sg_pert_adata = sg_adata[sg_adata.obs['condition'].isin(genes_and_ctrl), :]
 
         train, test, pert_list = get_splits.spectra(sg_pert_adata,
                                                     self.data_path,
@@ -66,7 +81,7 @@ class PerturbData(Dataset):
         print(f"Norman dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
 
         ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
-        # save the control data to a file
+
         if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
             ctrl_adata.write(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad", compression='gzip')
 
@@ -127,6 +142,7 @@ class PerturbData(Dataset):
                 pkl.dump(all_perts, f)
         else:
             basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+            pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
 
         control_genes = basal_ctrl_adata.var.index.to_list()
         pert_genes = pert_adata.var.index.to_list()
@@ -190,14 +206,16 @@ class PerturbData(Dataset):
         X_test = torch.from_numpy(np.concatenate((test_input_expr, pert_corr_test), axis=1))
         test_target = torch.from_numpy(test_target.X.toarray())
 
-        print('joe')
-
-        with gzip.open(f"{self.data_path}/train_data.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_train, train_target), f)
-        with gzip.open(f"{self.data_path}/val_data.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_val, val_target), f)
-        with gzip.open(f"{self.data_path}/test_data.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_test, test_target), f)
+
+        if self.multirun:
+            raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
+                                 f"on the next multirun...")
 
         return X_train, train_target, X_val, val_target, X_test, test_target
 
@@ -305,7 +323,7 @@ class PerturbData(Dataset):
         num_test_cells = test_target.shape[0]
         num_genes = basal_ctrl_adata.shape[1]
 
-        pass # continue here
+        pass  # continue here
 
     def __getitem__(self, index):
         if self.stage == "train":
