@@ -117,7 +117,16 @@ class PerturbData(Dataset):
 
         if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
             ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
+            pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
             ctrl_adata_raw = ctrl_adata.copy()
+            pert_adata_raw = pert_adata.copy()
+
+            # save control_data_raw for inference with scFMs and pert_data for contextual alignment experiment
+            if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
+                ctrl_adata.write(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad", compression='gzip')
+            if not os.path.exists(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad"):
+                pert_adata_raw.write(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad", compression='gzip')
+
             if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
                 sc.pp.normalize_total(sg_pert_adata)
                 sc.pp.log1p(sg_pert_adata)
@@ -151,7 +160,7 @@ class PerturbData(Dataset):
             basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
 
             # noinspection PyTypeChecker
-            basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+            basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad", compression='gzip')
             with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
                 pkl.dump(all_perts, f)
         else:
