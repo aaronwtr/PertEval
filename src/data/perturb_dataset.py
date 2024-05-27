@@ -166,27 +166,30 @@ class PerturbData(Dataset):
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
 
-        highly_variable_genes = pert_adata.var_names[adata.var['highly_variable']]
-        hv_pert_adata = pert_adata[:, highly_variable_genes]
-
-        train_target = hv_pert_adata[hv_pert_adata.obs['condition'].isin(train_perts), :]
-        test_target = hv_pert_adata[hv_pert_adata.obs['condition'].isin(test_perts), :]
+        train_target = pert_adata[pert_adata.obs['condition'].isin(train_perts), :]
+        test_target = pert_adata[pert_adata.obs['condition'].isin(test_perts), :]
 
         all_perts_train = train_target.obs['condition'].values
         all_perts_test = test_target.obs['condition'].values
 
         if not os.path.exists(f"{self.data_path}/pert_corrs.pkl"):
-            correlations = np.zeros(basal_ctrl_adata.shape[1])
             all_gene_expression = basal_ctrl_adata.X
 
             pert_corrs = {}
-
-            for pert in unique_perts:
-                pert_idx = adata.var_names.get_loc(pert)
+            for pert in tqdm(unique_perts, total=len(unique_perts)):
+                correlations = np.zeros(basal_ctrl_adata.shape[1])
+                ensg_id = gene_to_ensg[pert]
+                pert_idx = basal_ctrl_adata.var_names.get_loc(ensg_id)
                 basal_expr_pert = basal_ctrl_adata.X[:, pert_idx].flatten()
                 for i in range(all_gene_expression.shape[1]):
-                    correlations[i] = np.corrcoef(basal_expr_pert, all_gene_expression[:, i])[0, 1]
+                    corr = np.corrcoef(basal_expr_pert, all_gene_expression[:, i])[0, 1]
+                    if np.isnan(corr):
+                        corr = 0
+                    correlations[i] = corr
                 pert_corrs[pert] = correlations
+
+            with open(f"{self.data_path}/pert_corrs.pkl", "wb") as f:
+                pkl.dump(pert_corrs, f)
         else:
             with open(f"{self.data_path}/pert_corrs.pkl", "rb") as f:
                 pert_corrs = pkl.load(f)
@@ -197,15 +200,18 @@ class PerturbData(Dataset):
         num_genes = basal_ctrl_adata.shape[1]
 
         pert_corr_train = np.zeros((num_train_cells, num_genes))
-        for i, pert in enumerate(all_perts_train):
+        for i, pert in tqdm(enumerate(all_perts_train), total=len(all_perts_train)):
             pert_corr_train[i, :] = pert_corrs[pert]
 
         pert_corr_test = np.zeros((num_test_cells, num_genes))
-        for i, pert in enumerate(all_perts_test):
+        for i, pert in tqdm(enumerate(all_perts_test), total=len(all_perts_test)):
             pert_corr_test[i, :] = pert_corrs[pert]
 
-        train_input_expr = basal_ctrl_adata[np.random.randint(0, num_ctrl_cells, num_train_cells), :].X.toarray()
-        test_input_expr = basal_ctrl_adata[np.random.randint(0, num_ctrl_cells, num_test_cells), :].X.toarray()
+        random_train_mask = np.random.randint(0, num_ctrl_cells, num_train_cells)
+        random_test_mask = np.random.randint(0, num_ctrl_cells, num_test_cells)
+
+        train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
+        test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
 
         raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
         raw_train_target = train_target.X.toarray()
@@ -213,6 +219,7 @@ class PerturbData(Dataset):
         X_train, X_val, train_targets, val_targets = train_test_split(raw_X_train,
                                                                       raw_train_target,
                                                                       test_size=0.2)
+
         X_train = torch.from_numpy(X_train)
         train_target = torch.from_numpy(train_targets)
         X_val = torch.from_numpy(X_val)
