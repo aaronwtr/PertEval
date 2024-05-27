@@ -171,7 +171,8 @@ class Spectra(ABC):
                                 random_seed,
                                 test_size=0.2,
                                 force_reconstruct=False,
-                                data_path=""):
+                                data_path="",
+                                **kwargs):
 
         # Random seed is a list of random seeds for each number
         name = self.dataset.name

@@ -47,3 +47,6 @@ ckpt_path: null
 
 # seed for random number generators in pytorch, numpy and python.random
 seed: null
+
+# number of times to repeat training runs with different seeds for uncertainty estimation
+repeats: 3
