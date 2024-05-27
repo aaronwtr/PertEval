@@ -62,6 +62,7 @@ class PertDataModule(LightningDataModule):
             spectra_parameters: Optional[Dict[str, Any]] = None,
             num_workers: int = 0,
             pin_memory: bool = False,
+            **kwargs: Any,
     ) -> None:
         """Initialize a `PertDataModule`.
 
