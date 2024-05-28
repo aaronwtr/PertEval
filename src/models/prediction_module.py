@@ -10,31 +10,22 @@ from src.models.components.predictors import LinearRegressionModel, MLP
 class PredictionModule(LightningModule):
     def __init__(
         self,
+        net: torch.nn.Module,
         model_type: Literal["linear_regression", "mlp"] = "mlp",
-        input_dim: int = None,
         optimizer: torch.optim.Optimizer = torch.optim.Adam,
-        hidden_dim: Optional[int] = None,
-        output_dim: Optional[int] = None,
         criterion: Optional[torch.nn.Module] = nn.MSELoss(),
         compile: Optional[bool] = False,
         scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     ) -> None:
         super().__init__()
         
-        self.save_hyperparameters(logger=False)
-        
-        if model_type == "linear_regression":
-            self.net = LinearRegressionModel(input_dim)
-        elif model_type == "mlp":
-            assert hidden_dim is not None and output_dim is not None, "hidden_dim and output_dim must be provided for MLP"
-            self.net = MLP(input_dim, hidden_dim, output_dim)
-        else:
-            raise ValueError(f"Unsupported model_type: {model_type}")
+        self.save_hyperparameters(logger=False) 
         
         self.criterion = criterion
+        self.net = net
+        self.model_type = model_type ## saving placeholder in case different forward logic is required for different models
+        self.criterion = criterion
         self.compile = compile
-        self.optimizer = optimizer
-        self.scheduler = scheduler
 
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
@@ -74,6 +65,18 @@ class PredictionModule(LightningModule):
         self.test_mse(preds, targets)
         self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
+        
+    def setup(self, stage: str) -> None:
+        """Lightning hook that is called at the beginning of fit (train + validate), validate,
+        test, or predict.
+
+        This is a good hook when you need to build models dynamically or adjust something about
+        them. This hook is called on every process when using DDP.
+
+        :param stage: Either `"fit"`, `"validate"`, `"test"`, or `"predict"`.
+        """
+        if self.hparams.compile and stage == "fit":
+            self.net = torch.compile(self.net)
 
     def configure_optimizers(self) -> Dict[str, Any]:
         optimizer = self.hparams.optimizer(params=self.parameters())
