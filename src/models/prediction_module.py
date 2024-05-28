@@ -39,6 +39,13 @@ class PredictionModule(LightningModule):
 
     def model_step(self, batch: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         x, y = batch
+
+        if x.dtype != torch.float32:
+            x = x.to(torch.float32)
+
+        if y.dtype != torch.float32:
+            y = y.to(torch.float32)
+
         preds = self.forward(x)
         loss = self.criterion(preds, y)
         return loss, preds, y
