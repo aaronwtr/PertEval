@@ -5,12 +5,12 @@
 defaults:
   - _self_
   - data: perturb
-  - model: gears
+  - model: null # must be specified in experiment
   - callbacks: default
   - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: cpu
   - paths: default
-  - extras: default
+  - extras: null
   - hydra: default
 
   # experiment configs allow for version control of specific hyperparameters
@@ -29,6 +29,10 @@ defaults:
 
 # task name, determines output directory path
 task_name: "train"
+
+##number of features in the input data,
+##must be specified in the experiment config
+total_genes: null
 
 # tags to help you identify your experiments
 # you can overwrite this in experiment configs

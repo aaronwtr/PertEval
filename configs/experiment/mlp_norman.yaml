@@ -1,0 +1,9 @@
+# @package _global_
+
+defaults:
+  - override /model: mlp
+
+total_genes: 2061
+
+data:
+  data_name: "norman"
