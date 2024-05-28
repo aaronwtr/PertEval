@@ -25,56 +25,41 @@ class PerturbData(Dataset):
         self.spectra_params = spectra_params
         self.stage = stage
 
-        self.multirun = False
-        if type(self.spectral_parameter) is not str:
-            self.multirun = True
-            split_files = os.listdir(f"{self.data_path}/input_features/")
-            split_files = [file for file in split_files if "train_data" in file]
-            sps = []
-            for file in split_files:
-                sp = file.split('_')
-                sp = sp[2]
-                sp = sp.split('.p')[0]
-                if sp == "{:.2f}".format(self.spectral_parameter):
-                    sps.append(sp)
-            repl = len(sps)
-            self.spectral_parameter = "{:.2f}_{}".format(self.spectral_parameter, repl)
-
         if self.data_name == "norman":
-            if not os.path.exists(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz"):
+            if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
                 pp_data = self.preprocess_and_featurise_norman(adata)
                 self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target = pp_data
             else:
-                with gzip.open(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_train, self.train_target = pkl.load(f)
-                with gzip.open(f"{self.data_path}/input_features/val_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_val, self.val_target = pkl.load(f)
-                with gzip.open(f"{self.data_path}/input_features/test_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_test, self.test_target = pkl.load(f)
 
         if self.data_name == "replogle_rpe1":
-            if not os.path.exists(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz"):
+            if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
                 ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
                 pp_data = self.featurise_replogle(pert_adata, pert_list, ctrl_adata, train, test)
                 self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target = pp_data
             else:
-                with gzip.open(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_train, self.train_target = pkl.load(f)
-                with gzip.open(f"{self.data_path}/input_features/val_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_val, self.val_target = pkl.load(f)
-                with gzip.open(f"{self.data_path}/input_features/test_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_test, self.test_target = pkl.load(f)
         if self.data_name == "replogle_k562":
-            if not os.path.exists(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz"):
+            if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
                 ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
                 pp_data = self.featurise_replogle(pert_adata, pert_list, ctrl_adata, train, test)
                 self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target = pp_data
             else:
-                with gzip.open(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_train, self.train_target = pkl.load(f)
-                with gzip.open(f"{self.data_path}/input_features/val_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_val, self.val_target = pkl.load(f)
-                with gzip.open(f"{self.data_path}/input_features/test_data_{spectral_parameter}.pkl.gz", "rb") as f:
+                with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_test, self.test_target = pkl.load(f)
 
     def preprocess_and_featurise_norman(self, adata):
@@ -263,9 +248,9 @@ class PerturbData(Dataset):
         with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_test, test_target), f)
 
-        if self.multirun:
-            raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
-                                 f"on the next multirun...")
+
+        # raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
+        #                      f"on the next multirun...")
 
         return X_train, train_target, X_val, val_target, X_test, test_target
 
