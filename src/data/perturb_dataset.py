@@ -17,10 +17,10 @@ from src.utils.spectra import get_splits
 
 
 class PerturbData(Dataset):
-    def __init__(self, adata, data_path, spectral_parameter, spectra_params, stage, **kwargs):
+    def __init__(self, adata, data_path, spectral_parameter, replicate, spectra_params, stage, **kwargs):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
-        self.spectral_parameter = spectral_parameter
+        self.spectral_parameter = f"{spectral_parameter}_{replicate}"
         self.spectra_params = spectra_params
         self.stage = stage
 
@@ -39,15 +39,15 @@ class PerturbData(Dataset):
             repl = len(sps)
             self.spectral_parameter = "{:.2f}_{}".format(self.spectral_parameter, repl)
 
-        if not os.path.exists(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz"):
+        if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
             pp_data = self.preprocess_and_featurise_norman(adata)
             self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target = pp_data
         else:
-            with gzip.open(f"{self.data_path}/input_features/train_data_{spectral_parameter}.pkl.gz", "rb") as f:
+            with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                 self.X_train, self.train_target = pkl.load(f)
-            with gzip.open(f"{self.data_path}/input_features/val_data_{spectral_parameter}.pkl.gz", "rb") as f:
+            with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                 self.X_val, self.val_target = pkl.load(f)
-            with gzip.open(f"{self.data_path}/input_features/test_data_{spectral_parameter}.pkl.gz", "rb") as f:
+            with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                 self.X_test, self.test_target = pkl.load(f)
 
         if self.data_name == "replogle_rpe1":
