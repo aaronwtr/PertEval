@@ -7,24 +7,24 @@ import torch.nn as nn
 
 class LinearRegressionModel(torch.nn.Module):
     def __init__(self, 
-                 input_dim: int):
+                 in_dim: int):
         super().__init__()
         
-        self.linear = torch.nn.Linear(input_dim, 1)
+        self.linear = torch.nn.Linear(in_dim, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.linear(x)
     
 class MLP(torch.nn.Module):
-    def __init__(self, input_dim: int, 
+    def __init__(self, in_dim: int, 
                  hidden_dim: int,
-                 output_dim: int,
+                 out_dim: int,
                  layer_activation: nn.Module = nn.ReLU(),):
         
         super().__init__()
         self.layer_activation = layer_activation
-        self.fc1 = torch.nn.Linear(input_dim, hidden_dim)
-        self.fc2 = torch.nn.Linear(hidden_dim, output_dim)
+        self.fc1 = torch.nn.Linear(in_dim, hidden_dim)
+        self.fc2 = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.fc1(x)
