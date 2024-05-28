@@ -21,7 +21,6 @@ class PredictionModule(LightningModule):
         
         self.save_hyperparameters(logger=False) 
         
-        self.criterion = criterion
         self.net = net
         self.model_type = model_type ## saving placeholder in case different forward logic is required for different models
         self.criterion = criterion
