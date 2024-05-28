@@ -22,7 +22,7 @@ class PredictionModule(LightningModule):
         self.save_hyperparameters(logger=False) 
         
         self.net = net
-        self.model_type = model_type ## saving placeholder in case different forward logic is required for different models
+        self.model_type = model_type # saving placeholder in case different forward logic is required for different models
         self.criterion = criterion
         self.compile = compile
 
@@ -54,7 +54,6 @@ class PredictionModule(LightningModule):
         loss, preds, targets = self.model_step(batch)
         self.train_loss(loss)
         self.train_mse(preds, targets)
-        self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train/mse", self.train_mse, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
@@ -62,14 +61,13 @@ class PredictionModule(LightningModule):
         loss, preds, targets = self.model_step(batch)
         self.val_loss(loss)
         self.val_mse(preds, targets)
-        self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val/mse", self.val_mse, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> None:
         loss, preds, targets = self.model_step(batch)
+
         self.test_loss(loss)
         self.test_mse(preds, targets)
-        self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
         
     def setup(self, stage: str) -> None:
@@ -92,7 +90,7 @@ class PredictionModule(LightningModule):
                 "optimizer": optimizer,
                 "lr_scheduler": {
                     "scheduler": scheduler,
-                    "monitor": "val/loss",
+                    "monitor": "val/mse",
                     "interval": "epoch",
                     "frequency": 1,
                 },

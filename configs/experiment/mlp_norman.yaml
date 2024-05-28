@@ -4,8 +4,6 @@ defaults:
   - override /model: mlp
   - override /logger: wandb
 
-tags: ["mlp", "norman", "split_${data.split}", "replicate_${data.replicate}"]
-
 total_genes: 2061
 
 data:
