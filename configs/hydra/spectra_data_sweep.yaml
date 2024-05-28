@@ -1,6 +1,6 @@
 # @package _global_
 
-# run with `--multirun experiment=spectra_data_sweep` flag
+# run with `--multirun hydra=spectra_data_sweep` flag
 hydra:
   sweeper:
     params:
