@@ -57,7 +57,8 @@ class PertDataModule(LightningDataModule):
             self,
             data_dir: str = DATA_DIR,
             data_name: str = "norman",
-            split: str = "0.00_0",
+            sparsification_prob: float = 0.00,
+            replicates: int = 0,
             batch_size: int = 64,
             spectra_parameters: Optional[Dict[str, Any]] = None,
             num_workers: int = 0,
@@ -82,7 +83,7 @@ class PertDataModule(LightningDataModule):
         self.adata = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
-        self.split = split
+        self.spectral_parameter = f"{sparsification_prob:.2f}_{str(replicates)}"
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
@@ -151,52 +152,51 @@ class PertDataModule(LightningDataModule):
             scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
             adata = scpert_loader()
 
-            train_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="train")
-            val_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="val")
-            test_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="test")
-
-            self.data_train = DataLoader(
-                train_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=True,
-            )
-            self.data_val = DataLoader(
-                val_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=False,
-            )
-            self.data_test = DataLoader(
-                test_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=False,
-            )
+            self.train_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
+                                        stage="train")
+            self.val_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
+                                      stage="val")
+            self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
+                                       stage="test")
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
 
         :return: The train dataloader.
         """
-        return self.data_train
+        return DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=True,
+            )
 
     def val_dataloader(self) -> DataLoader[Any]:
         """Create and return the validation dataloader.
 
         :return: The validation dataloader.
         """
-        return self.data_val
+        return DataLoader(
+                self.val_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=False,
+            )
 
     def test_dataloader(self) -> DataLoader[Any]:
         """Create and return the test dataloader.
 
         :return: The test dataloader.
         """
-        return self.data_test
+        return DataLoader(
+                self.test_dataset,
+                batch_size=self.batch_size_per_device,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                shuffle=False,
+            )
 
     def teardown(self, stage: Optional[str] = None) -> None:
         """Lightning hook for cleaning up after `trainer.fit()`, `trainer.validate()`,
