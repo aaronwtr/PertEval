@@ -2,6 +2,7 @@ import torch
 import os
 import anndata
 import gzip
+import time
 
 import numpy as np
 import scanpy as sc
@@ -24,6 +25,8 @@ class PerturbData(Dataset):
         self.spectral_parameter = spectral_parameter
         self.spectra_params = spectra_params
         self.stage = stage
+
+        self.start_time = time.time()
 
         if self.data_name == "norman":
             if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
@@ -411,6 +414,9 @@ class PerturbData(Dataset):
 
         print("\n\nInput masks generated.\n\n")
 
+        time_elapsed = time.time() - self.start_time
+        print(f"\nnTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\nn")
+
         train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
         test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
 
@@ -430,13 +436,30 @@ class PerturbData(Dataset):
         X_test = torch.from_numpy(np.concatenate((test_input_expr, pert_corr_test), axis=1))
         test_target = torch.from_numpy(test_target.X.toarray())
 
-        with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
-            pkl.dump((X_train, train_target), f)
+        print("\n\nData split into train, validation, and test sets.\n\n")
+        time_elapsed = time.time() - self.start_time
+        print(f"\nnTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\nn")
 
-        with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        # save data as pickle without gzip
+
+        with open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl", "wb") as f:
+            pkl.dump((X_train, train_target), f)
+        with open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl", "wb") as f:
             pkl.dump((X_val, val_target), f)
-        with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        with open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl", "wb") as f:
             pkl.dump((X_test, test_target), f)
+
+        # with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        #     pkl.dump((X_train, train_target), f)
+        #
+        # with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        #     pkl.dump((X_val, val_target), f)
+        # with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        #     pkl.dump((X_test, test_target), f)
+
+        print("\n\nData saved to disk.\n\n")
+        time_elapsed = time.time() - self.start_time
+        print(f"\nnTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\nn")
 
         return X_train, train_target, X_val, val_target, X_test, test_target
 
