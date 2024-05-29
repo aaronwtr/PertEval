@@ -161,4 +161,4 @@ notebooks/*
 
 src/data/cluster_temp.py
 
-multirun/2024-05-29/17-59-17/0/.hydra/
+multirun/*
