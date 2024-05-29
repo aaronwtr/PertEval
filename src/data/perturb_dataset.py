@@ -385,8 +385,48 @@ class PerturbData(Dataset):
         for i, pert in tqdm(enumerate(all_perts_test), total=len(all_perts_test)):
             pert_corr_test[i, :] = pert_corrs[pert]
 
+        for random_train_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_train_cells):
+            if 'random_train_mask' not in locals():
+                random_train_mask = random_train_chunk
+            else:
+                random_train_mask = np.concatenate((random_train_mask, random_train_chunk))
 
-        pass  # continue here
+        for random_test_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_test_cells):
+            if 'random_test_mask' not in locals():
+                random_test_mask = random_test_chunk
+            else:
+                random_test_mask = np.concatenate((random_test_mask, random_test_chunk))
+
+        print("Input masks generated.")
+
+        train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
+        test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
+
+        print("Input expression data generated.")
+
+        raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
+        raw_train_target = train_target.X.toarray()
+
+        X_train, X_val, train_targets, val_targets = train_test_split(raw_X_train,
+                                                                      raw_train_target,
+                                                                      test_size=0.2)
+
+        X_train = torch.from_numpy(X_train)
+        train_target = torch.from_numpy(train_targets)
+        X_val = torch.from_numpy(X_val)
+        val_target = torch.from_numpy(val_targets)
+        X_test = torch.from_numpy(np.concatenate((test_input_expr, pert_corr_test), axis=1))
+        test_target = torch.from_numpy(test_target.X.toarray())
+
+        with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+            pkl.dump((X_train, train_target), f)
+
+        with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+            pkl.dump((X_val, val_target), f)
+        with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+            pkl.dump((X_test, test_target), f)
+
+        return X_train, train_target, X_val, val_target, X_test, test_target
 
     @staticmethod
     def compute_correlations(pert, basal_ctrl_adata, all_gene_expression):
