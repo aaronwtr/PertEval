@@ -3,16 +3,17 @@
 defaults:
   - _self_
   - data: perturb # choose datamodule with `test_dataloader()` for evaluation
-  - model: gears
+  - model: null
   - logger: null
   - trainer: default
   - paths: default
   - extras: default
   - hydra: default
 
-task_name: "eval"
+# set this to "de" in experiment config if evaluating on differentially expressed genes for a single perturbation
+task_name: null
 
 tags: ["dev"]
 
 # passing checkpoint path is necessary for evaluation
-ckpt_path: ???
+ckpt_path: "${log_dir}/runs/earnest-frost-107/checkpoints/best_model_at_epoch_019.ckpt"

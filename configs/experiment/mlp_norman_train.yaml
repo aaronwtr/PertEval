@@ -1,6 +1,6 @@
 # @package _global_
 
-# run with `python src/train.py experiment=mlp_norman`
+# run with `python src/train.py experiment=mlp_norman_train`
 
 defaults:
   - override /model: mlp
@@ -13,5 +13,5 @@ data:
 
 logger:
   wandb:
-    tags: ${tags}
+    tags: ["mlp", "norman", "split_${data.split}", "replicate_${data.replicate}"]
     group: "mlp_norman_${data.split}"
