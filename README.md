@@ -40,19 +40,16 @@ conda activate pertbench
 
 Alternatively, using virtualenv:
 ```
-python3.10 -m venv pertbench
+`python3.10 -m venv pertbench`
 
-# Windows:
-pertbench\Scripts\activate
+### Windows:
+`pertbench\Scripts\activate`
 
-# MacOS/Linux
-source pertbench/bin/activate
+### MacOS/Linux
+`source pertbench/bin/activate`
 
-# install pytorch according to instructions
-# https://pytorch.org/get-started/
-
-# install requirements
-pip install -r requirements.txt
+### Install requirements
+`pip install -r requirements.txt`
 ```
 
 #### Conda
