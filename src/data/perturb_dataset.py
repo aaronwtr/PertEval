@@ -369,9 +369,6 @@ class PerturbData(Dataset):
         else:
             with gzip.open(f"{self.data_path}/pert_corrs.pkl.gz", "rb") as f:
                 pert_corrs = pkl.load(f)
-
-        print("Pertubation correlation features computed.")
-
         num_ctrl_cells = basal_ctrl_adata.shape[0]
         num_train_cells = train_target.shape[0]
         num_test_cells = test_target.shape[0]
@@ -385,17 +382,31 @@ class PerturbData(Dataset):
         for i, pert in tqdm(enumerate(all_perts_test), total=len(all_perts_test)):
             pert_corr_test[i, :] = pert_corrs[pert]
 
-        for random_train_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_train_cells):
-            if 'random_train_mask' not in locals():
-                random_train_mask = random_train_chunk
-            else:
-                random_train_mask = np.concatenate((random_train_mask, random_train_chunk))
+        print("Pertubation correlation features computed.")
 
-        for random_test_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_test_cells):
-            if 'random_test_mask' not in locals():
-                random_test_mask = random_test_chunk
-            else:
-                random_test_mask = np.concatenate((random_test_mask, random_test_chunk))
+        if not os.path.exists(f"{self.data_path}/random_train_mask.pkl.gz"):
+            for random_train_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_train_cells):
+                if 'random_train_mask' not in locals():
+                    random_train_mask = random_train_chunk
+                else:
+                    random_train_mask = np.concatenate((random_train_mask, random_train_chunk))
+            with gzip.open(f"{self.data_path}/random_train_mask.pkl.gz", "wb") as f:
+                pkl.dump(random_train_mask, f)
+        else:
+            with gzip.open(f"{self.data_path}/random_train_mask.pkl.gz", "rb") as f:
+                random_train_mask = pkl.load(f)
+
+        if not os.path.exists(f"{self.data_path}/random_test_mask.pkl.gz"):
+            for random_test_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_test_cells):
+                if 'random_test_mask' not in locals():
+                    random_test_mask = random_test_chunk
+                else:
+                    random_test_mask = np.concatenate((random_test_mask, random_test_chunk))
+            with gzip.open(f"{self.data_path}/random_test_mask.pkl.gz", "wb") as f:
+                pkl.dump(random_test_mask, f)
+        else:
+            with gzip.open(f"{self.data_path}/random_test_mask.pkl.gz", "rb") as f:
+                random_test_mask = pkl.load(f)
 
         print("Input masks generated.")
 
@@ -436,6 +447,17 @@ class PerturbData(Dataset):
             [pearsonr(basal_expr_pert, all_gene_expression[:, i])[0] for i in range(all_gene_expression.shape[1])])
         correlations[np.isnan(correlations)] = 0
         return pert, correlations
+
+    @staticmethod
+    def generate_random_in_chunks(low, high, num_total, chunk_size=1000):
+        num_generated = 0
+        pbar = tqdm(total=num_total)
+        while num_generated < num_total:
+            num_to_generate = min(chunk_size, num_total - num_generated)
+            yield np.random.randint(low, high, num_to_generate)
+            num_generated += num_to_generate
+            pbar.update(num_to_generate)
+        pbar.close()
 
     def __getitem__(self, index):
         if self.stage == "train":
