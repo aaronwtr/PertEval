@@ -57,7 +57,8 @@ class PertDataModule(LightningDataModule):
             self,
             data_dir: str = DATA_DIR,
             data_name: str = "norman",
-            split: str = "0.00_0",
+            split: str = "0.00",
+            replicate: str = "0",
             batch_size: int = 64,
             spectra_parameters: Optional[Dict[str, Any]] = None,
             num_workers: int = 0,
@@ -83,6 +84,7 @@ class PertDataModule(LightningDataModule):
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
         self.split = split
+        self.replicate = replicate
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
@@ -151,9 +153,12 @@ class PertDataModule(LightningDataModule):
             scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
             adata = scpert_loader()
 
-            train_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="train")
-            val_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="val")
-            test_dataset = PerturbData(adata, self.data_path, self.split, self.spectra_parameters, stage="test")
+            train_dataset = PerturbData(adata, self.data_path, self.split, self.replicate, self.spectra_parameters,
+                                        stage="train")
+            val_dataset = PerturbData(adata, self.data_path, self.split, self.replicate, self.spectra_parameters,
+                                      stage="val")
+            test_dataset = PerturbData(adata, self.data_path, self.split, self.replicate, self.spectra_parameters,
+                                       stage="test")
 
             self.data_train = DataLoader(
                 train_dataset,
@@ -221,7 +226,6 @@ class PertDataModule(LightningDataModule):
         :param state_dict: The datamodule state returned by `self.state_dict()`.
         """
         pass
-
 
 if __name__ == "__main__":
     _ = PertDataModule()

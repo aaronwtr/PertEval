@@ -1,12 +1,13 @@
 _target_: src.data.perturb_datamodule.PertDataModule
 data_dir: ${paths.data_dir}
-data_name: "norman"
+data_name: null # Has to be specified from experiment config
 batch_size: 32 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
 spectra_parameters:
   'number_repeats': 3
   'random_seed': [42, 44, 46]
   'sparsification_step': 0.1
   'force_reconstruct': True
-split: "0.00_0"
+split: "0.80"
+replicate: "0"
 num_workers: 0
 pin_memory: False

@@ -1,0 +1,17 @@
+# @package _global_
+
+# run with `python src/train.py experiment=mlp_norman`
+
+defaults:
+  - override /model: mlp
+  - override /logger: wandb
+
+total_genes: 2061
+
+data:
+  data_name: "norman"
+
+logger:
+  wandb:
+    tags: ${tags}
+    group: "mlp_norman_${data.split}"
