@@ -17,9 +17,11 @@ from src.utils.spectra import get_splits
 
 
 class PerturbData(Dataset):
-    def __init__(self, adata, data_path, spectral_parameter, replicate, spectra_params, stage, **kwargs):
+    def __init__(self, adata, data_path, de_genes, genes, spectral_parameter, replicate, spectra_params, stage, **kwargs):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
+        self.de_genes = de_genes
+        self.genes = genes
         self.spectral_parameter = f"{spectral_parameter}_{replicate}"
         self.spectra_params = spectra_params
         self.stage = stage
@@ -347,12 +349,13 @@ class PerturbData(Dataset):
         pass  # continue here
 
     def __getitem__(self, index):
+        deg_idx = [self.genes.index(gene) for gene in self.de_genes]
         if self.stage == "train":
             return self.X_train[index], self.train_target[index]
         elif self.stage == "val":
             return self.X_val[index], self.val_target[index]
         else:
-            return self.X_test[index], self.test_target[index]
+            return self.X_test[index], self.test_target[index], deg_idx
 
     def __len__(self):
         if self.stage == "train":

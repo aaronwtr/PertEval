@@ -1,5 +1,7 @@
 import os
 
+import pickle as pkl
+
 from typing import Any, Dict, Optional
 from pertpy import data as scpert_data
 
@@ -153,12 +155,18 @@ class PertDataModule(LightningDataModule):
             scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
             adata = scpert_loader()
 
-            train_dataset = PerturbData(adata, self.data_path, self.split, self.replicate, self.spectra_parameters,
-                                        stage="train")
-            val_dataset = PerturbData(adata, self.data_path, self.split, self.replicate, self.spectra_parameters,
-                                      stage="val")
-            test_dataset = PerturbData(adata, self.data_path, self.split, self.replicate, self.spectra_parameters,
-                                       stage="test")
+            with open(f"{self.data_path}/{self.data_name}/de_genes.pkl", "rb") as f:
+                de_genes = pkl.load(f)
+
+            with open(f"{self.data_path}/{self.data_name}/genes.pkl", "rb") as f:
+                genes = pkl.load(f)
+
+            train_dataset = PerturbData(adata, self.data_path, de_genes, genes, self.split, self.replicate,
+                                        self.spectra_parameters, stage="train")
+            val_dataset = PerturbData(adata, self.data_path, de_genes, genes, self.split, self.replicate,
+                                      self.spectra_parameters, stage="val")
+            test_dataset = PerturbData(adata, self.data_path, de_genes, genes, self.split, self.replicate,
+                                       self.spectra_parameters, stage="test")
 
             self.data_train = DataLoader(
                 train_dataset,
