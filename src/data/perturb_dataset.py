@@ -19,10 +19,11 @@ from src.utils.spectra import get_splits
 
 
 class PerturbData(Dataset):
-    def __init__(self, adata, data_path, spectral_parameter, spectra_params, stage, **kwargs):
+    def __init__(self, adata, data_path, de_genes, spectral_parameter, replicate, spectra_params, stage, **kwargs):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
-        self.spectral_parameter = spectral_parameter
+        self.de_genes = de_genes
+        self.spectral_parameter = f"{spectral_parameter}_{replicate}"
         self.spectra_params = spectra_params
         self.stage = stage
 
@@ -252,8 +253,8 @@ class PerturbData(Dataset):
             pkl.dump((X_test, test_target), f)
 
 
-        # raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
-        #                      f"on the next multirun...")
+        raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
+                             f"on the next multirun...")
 
         return X_train, train_target, X_val, val_target, X_test, test_target
 
@@ -460,6 +461,9 @@ class PerturbData(Dataset):
         print("\n\nData saved to disk.\n\n")
         time_elapsed = time.time() - self.start_time
         print(f"\nnTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\nn")
+
+        raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
+                             f"on the next multirun...")
 
         return X_train, train_target, X_val, val_target, X_test, test_target
 
