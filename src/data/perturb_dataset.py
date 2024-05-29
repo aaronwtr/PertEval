@@ -369,6 +369,7 @@ class PerturbData(Dataset):
         else:
             with gzip.open(f"{self.data_path}/pert_corrs.pkl.gz", "rb") as f:
                 pert_corrs = pkl.load(f)
+
         num_ctrl_cells = basal_ctrl_adata.shape[0]
         num_train_cells = train_target.shape[0]
         num_test_cells = test_target.shape[0]
@@ -382,7 +383,7 @@ class PerturbData(Dataset):
         for i, pert in tqdm(enumerate(all_perts_test), total=len(all_perts_test)):
             pert_corr_test[i, :] = pert_corrs[pert]
 
-        print("Pertubation correlation features computed.")
+        print("\n\nPertubation correlation features computed.\n\n")
 
         if not os.path.exists(f"{self.data_path}/random_train_mask.pkl.gz"):
             for random_train_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_train_cells):
@@ -408,12 +409,12 @@ class PerturbData(Dataset):
             with gzip.open(f"{self.data_path}/random_test_mask.pkl.gz", "rb") as f:
                 random_test_mask = pkl.load(f)
 
-        print("Input masks generated.")
+        print("\n\nInput masks generated.\n\n")
 
         train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
         test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
 
-        print("Input expression data generated.")
+        print("\n\nInput expression data generated.\n\n")
 
         raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
         raw_train_target = train_target.X.toarray()
