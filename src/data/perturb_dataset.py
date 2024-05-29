@@ -354,7 +354,7 @@ class PerturbData(Dataset):
         all_perts_train = train_target.obs['condition'].values
         all_perts_test = test_target.obs['condition'].values
 
-        if not os.path.exists(f"{self.data_path}/pert_corrs.pkl"):
+        if not os.path.exists(f"{self.data_path}/pert_corrs.pkl.gz"):
             all_gene_expression = basal_ctrl_adata.X
 
             results = []
@@ -364,11 +364,13 @@ class PerturbData(Dataset):
 
             pert_corrs = {pert: corr for pert, corr in results}
 
-            with open(f"{self.data_path}/pert_corrs.pkl", "wb") as f:
+            with gzip.open(f"{self.data_path}/pert_corrs.pkl.gz", "wb") as f:
                 pkl.dump(pert_corrs, f)
         else:
-            with open(f"{self.data_path}/pert_corrs.pkl", "rb") as f:
+            with gzip.open(f"{self.data_path}/pert_corrs.pkl.gz", "rb") as f:
                 pert_corrs = pkl.load(f)
+
+        print("Pertubation correlation features computed.")
 
         num_ctrl_cells = basal_ctrl_adata.shape[0]
         num_train_cells = train_target.shape[0]
