@@ -17,29 +17,16 @@ from src.utils.spectra import get_splits
 
 
 class PerturbData(Dataset):
-    def __init__(self, adata, data_path, de_genes, genes, spectral_parameter, replicate, spectra_params, stage, **kwargs):
+    def __init__(self, adata, data_path, spectral_param, replicate, spectra_params, stage, **kwargs):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
-        self.de_genes = de_genes
-        self.genes = genes
-        self.spectral_parameter = f"{spectral_parameter}_{replicate}"
+        self.spectral_parameter = f"{spectral_param}_{replicate}"
         self.spectra_params = spectra_params
         self.stage = stage
+        self.eval_type = kwargs.get("eval_type", None)
 
-        self.multirun = False
-        if type(self.spectral_parameter) is not str:
-            self.multirun = True
-            split_files = os.listdir(f"{self.data_path}/input_features/")
-            split_files = [file for file in split_files if "train_data" in file]
-            sps = []
-            for file in split_files:
-                sp = file.split('_')
-                sp = sp[2]
-                sp = sp.split('.p')[0]
-                if sp == "{:.2f}".format(self.spectral_parameter):
-                    sps.append(sp)
-            repl = len(sps)
-            self.spectral_parameter = "{:.2f}_{}".format(self.spectral_parameter, repl)
+        if self.eval_type is not None and "_de" not in self.eval_type:
+            raise ValueError("eval_type must be None or '{pert}_de'.")
 
         if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
             pp_data = self.preprocess_and_featurise_norman(adata)
@@ -168,6 +155,10 @@ class PerturbData(Dataset):
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
 
+        if not os.path.exists(f"{self.data_path}/test_perts_split_{self.spectral_parameter}.pkl"):
+            with open(f"{self.data_path}/test_perts_{self.spectral_parameter}.pkl", "wb") as f:
+                pkl.dump(test_perts, f)
+
         train_target = pert_adata[pert_adata.obs['condition'].isin(train_perts), :]
         test_target = pert_adata[pert_adata.obs['condition'].isin(test_perts), :]
 
@@ -235,10 +226,6 @@ class PerturbData(Dataset):
             pkl.dump((X_val, val_target), f)
         with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_test, test_target), f)
-
-        if self.multirun:
-            raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
-                                 f"on the next multirun...")
 
         return X_train, train_target, X_val, val_target, X_test, test_target
 
@@ -349,13 +336,16 @@ class PerturbData(Dataset):
         pass  # continue here
 
     def __getitem__(self, index):
-        deg_idx = [self.genes.index(gene) for gene in self.de_genes]
         if self.stage == "train":
             return self.X_train[index], self.train_target[index]
         elif self.stage == "val":
             return self.X_val[index], self.val_target[index]
-        else:
-            return self.X_test[index], self.test_target[index], deg_idx
+        elif "_de" in self.eval_type:
+            sp = self.spectral_parameter.split('_')[0]
+            perturbed = self.eval_type.split('_')[0]
+            with open(f"{self.data_path}/de_test/split_{sp}/{perturbed}_de_idx.pkl", "rb") as f:
+                de_idx = pkl.load(f)
+            return self.X_test[index, de_idx], self.test_target[index, de_idx]
 
     def __len__(self):
         if self.stage == "train":

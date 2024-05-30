@@ -63,6 +63,7 @@ class PertDataModule(LightningDataModule):
             replicate: str = "0",
             batch_size: int = 64,
             spectra_parameters: Optional[Dict[str, Any]] = None,
+            eval_type: Optional[str] = None,
             num_workers: int = 0,
             pin_memory: bool = False,
             **kwargs: Any,
@@ -83,10 +84,14 @@ class PertDataModule(LightningDataModule):
         self.pert_data = None
         self.pertmodule = None
         self.adata = None
+        self.train_dataset = None
+        self.val_dataset = None
+        self.test_dataset = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
         self.split = split
         self.replicate = replicate
+        self.eval_type = eval_type
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
@@ -155,61 +160,56 @@ class PertDataModule(LightningDataModule):
             scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
             adata = scpert_loader()
 
-            with open(f"{self.data_path}/{self.data_name}/de_genes.pkl", "rb") as f:
-                de_genes = pkl.load(f)
+            self.train_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
+                                             self.spectra_parameters, stage="train")
+            self.val_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
+                                           self.spectra_parameters, stage="val")
 
-            with open(f"{self.data_path}/{self.data_name}/genes.pkl", "rb") as f:
-                genes = pkl.load(f)
-
-            train_dataset = PerturbData(adata, self.data_path, de_genes, genes, self.split, self.replicate,
-                                        self.spectra_parameters, stage="train")
-            val_dataset = PerturbData(adata, self.data_path, de_genes, genes, self.split, self.replicate,
-                                      self.spectra_parameters, stage="val")
-            test_dataset = PerturbData(adata, self.data_path, de_genes, genes, self.split, self.replicate,
-                                       self.spectra_parameters, stage="test")
-
-            self.data_train = DataLoader(
-                train_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=True,
-            )
-            self.data_val = DataLoader(
-                val_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=False,
-            )
-            self.data_test = DataLoader(
-                test_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=False,
-            )
+            if not self.eval_type:
+                self.test_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
+                                                self.spectra_parameters, stage="test")
+            else:
+                self.test_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
+                                                self.spectra_parameters, stage="test", eval_type=self.eval_type)
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
 
         :return: The train dataloader.
         """
-        return self.data_train
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size_per_device,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            shuffle=True,
+        )
 
     def val_dataloader(self) -> DataLoader[Any]:
         """Create and return the validation dataloader.
 
         :return: The validation dataloader.
         """
-        return self.data_val
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size_per_device,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            shuffle=False,
+        )
 
     def test_dataloader(self) -> DataLoader[Any]:
         """Create and return the test dataloader.
 
         :return: The test dataloader.
         """
-        return self.data_test
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size_per_device,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            shuffle=False,
+        )
 
     def teardown(self, stage: Optional[str] = None) -> None:
         """Lightning hook for cleaning up after `trainer.fit()`, `trainer.validate()`,
@@ -234,6 +234,7 @@ class PertDataModule(LightningDataModule):
         :param state_dict: The datamodule state returned by `self.state_dict()`.
         """
         pass
+
 
 if __name__ == "__main__":
     _ = PertDataModule()
