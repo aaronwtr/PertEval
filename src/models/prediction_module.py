@@ -7,22 +7,23 @@ from lightning import LightningModule
 from torchmetrics import MeanSquaredError, MeanMetric
 from src.models.components.predictors import LinearRegressionModel, MLP
 
+
 class PredictionModule(LightningModule):
     def __init__(
-        self,
-        net: torch.nn.Module,
-        model_type: Literal["linear_regression", "mlp"] = "mlp",
-        optimizer: torch.optim.Optimizer = torch.optim.Adam,
-        criterion: Optional[torch.nn.Module] = nn.MSELoss(),
-        compile: Optional[bool] = False,
-        scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+            self,
+            net: torch.nn.Module,
+            model_type: Literal["linear_regression", "mlp"] = "mlp",
+            optimizer: torch.optim.Optimizer = torch.optim.Adam,
+            criterion: Optional[torch.nn.Module] = nn.MSELoss(),
+            compile: Optional[bool] = False,
+            scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     ) -> None:
         super().__init__()
-        
-        self.save_hyperparameters(logger=False) 
-        
+
+        self.save_hyperparameters(logger=False)
+
         self.net = net
-        self.model_type = model_type # saving placeholder in case different forward logic is required for different models
+        self.model_type = model_type  # saving placeholder in case different forward logic is required for different models
         self.criterion = criterion
         self.compile = compile
 
@@ -69,7 +70,7 @@ class PredictionModule(LightningModule):
         self.test_loss(loss)
         self.test_mse(preds, targets)
         self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
-        
+
     def setup(self, stage: str) -> None:
         """Lightning hook that is called at the beginning of fit (train + validate), validate,
         test, or predict.
