@@ -110,12 +110,16 @@ Evals work similar by calling
 python src/eval.py ckpt_path="/path/to/ckpt/name.ckpt"
 ```
 
-## Evaluating on differentially expressed gene for a perturbation 
+## Evaluating on differentially expressed gene for a perturbation 
+
 TODO: provide scripts for this 
 
 Step 1) Obtain indices for DE genes for perturbation of interest matched with model input genes
+
 Step 2) Run eval.py from an experiment config (e.g. mlp_norman_eval.yaml)
+
 Step 3) Set eval_type as {perturbation}_de and set ckpt_path pointing to the checkpoint for the split being evaluated in the experiment eval.yaml
+
 Step 4) Set split and replicate in the experiment eval.yaml
 
 ## Setting up Weights and Biases logging and experiment tracking
