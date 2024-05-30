@@ -2,18 +2,22 @@
 
 defaults:
   - _self_
-  - data: perturb # choose datamodule with `test_dataloader()` for evaluation
-  - model: null
-  - logger: null
-  - trainer: default
+  - data: perturb
+  - model: null # must be specified in experiment
+  - callbacks: default
+  - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - trainer: cpu
   - paths: default
-  - extras: default
+  - extras: null
   - hydra: default
 
-# set this to "de" in experiment config if evaluating on differentially expressed genes for a single perturbation
-task_name: null
+  # experiment configs allow for version control of specific hyperparameters
+  # e.g. best hyperparameters for given model and datamodule
+  - experiment: null
+
+task_name: "test"
 
 tags: ["dev"]
 
 # passing checkpoint path is necessary for evaluation
-ckpt_path: "${log_dir}/runs/earnest-frost-107/checkpoints/best_model_at_epoch_019.ckpt"
+ckpt_path: "test"

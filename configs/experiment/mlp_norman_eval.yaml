@@ -10,12 +10,11 @@ total_genes: 2061
 
 data:
   data_name: "norman"
+  eval_type: "ARID1A_de"
 
-eval_type: "de"
+ckpt_path: "${paths.log_dir}train/runs/earnest-frost-107/checkpoints/best_model_at_epoch_019.ckpt"
 
 logger:
   wandb:
     tags: ["mlp", "norman", "split_${data.split}", "replicate_${data.replicate}"]
     group: "mlp_norman_${data.split}"
-
-ckpt_path:

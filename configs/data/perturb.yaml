@@ -9,5 +9,6 @@ spectra_parameters:
   'force_reconstruct': True
 split: "0.80"
 replicate: "0"
+eval_type: null # Has to be specified from experiment config
 num_workers: 0
 pin_memory: False
