@@ -270,6 +270,12 @@ class PerturbData(Dataset):
         unique_perts = list(set(adata.obs['condition'].to_list()))
         unique_perts.remove('ctrl')
 
+        train, test, pert_list = get_splits.spectra(adata,
+                                                    self.data_path,
+                                                    self.spectra_params,
+                                                    self.spectral_parameter
+                                                    )
+
         sc.pp.normalize_total(adata)
         sc.pp.log1p(adata)
         sc.pp.highly_variable_genes(adata, n_top_genes=2000)
@@ -308,11 +314,6 @@ class PerturbData(Dataset):
             with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
                 pkl.dump(unique_perts, f)
 
-        train, test, pert_list = get_splits.spectra(adata,
-                                                    self.data_path,
-                                                    self.spectra_params,
-                                                    self.spectral_parameter
-                                                    )
         return ctrl_adata, pert_adata, train, test, pert_list
 
     def featurise_replogle(self, pert_adata, pert_list, ctrl_adata, train, test):
@@ -389,40 +390,46 @@ class PerturbData(Dataset):
 
         print("\n\nPertubation correlation features computed.\n\n")
 
-        if not os.path.exists(f"{self.data_path}/random_train_mask.pkl.gz"):
-            for random_train_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_train_cells):
-                if 'random_train_mask' not in locals():
-                    random_train_mask = random_train_chunk
-                else:
-                    random_train_mask = np.concatenate((random_train_mask, random_train_chunk))
-            with gzip.open(f"{self.data_path}/random_train_mask.pkl.gz", "wb") as f:
-                pkl.dump(random_train_mask, f)
-        else:
-            with gzip.open(f"{self.data_path}/random_train_mask.pkl.gz", "rb") as f:
-                random_train_mask = pkl.load(f)
+        random_train_mask = np.random.randint(0, num_ctrl_cells, num_train_cells)
+        random_test_mask = np.random.randint(0, num_ctrl_cells, num_test_cells)
 
-        if not os.path.exists(f"{self.data_path}/random_test_mask.pkl.gz"):
-            for random_test_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_test_cells):
-                if 'random_test_mask' not in locals():
-                    random_test_mask = random_test_chunk
-                else:
-                    random_test_mask = np.concatenate((random_test_mask, random_test_chunk))
-            with gzip.open(f"{self.data_path}/random_test_mask.pkl.gz", "wb") as f:
-                pkl.dump(random_test_mask, f)
-        else:
-            with gzip.open(f"{self.data_path}/random_test_mask.pkl.gz", "rb") as f:
-                random_test_mask = pkl.load(f)
+        # if not os.path.exists(f"{self.data_path}/random_train_mask.pkl.gz"):
+        #     for random_train_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_train_cells):
+        #         if 'random_train_mask' not in locals():
+        #             random_train_mask = random_train_chunk
+        #         else:
+        #             random_train_mask = np.concatenate((random_train_mask, random_train_chunk))
+        #     with gzip.open(f"{self.data_path}/random_train_mask.pkl.gz", "wb") as f:
+        #         pkl.dump(random_train_mask, f)
+        # else:
+        #     with gzip.open(f"{self.data_path}/random_train_mask.pkl.gz", "rb") as f:
+        #         random_train_mask = pkl.load(f)
+        #
+        # if not os.path.exists(f"{self.data_path}/random_test_mask.pkl.gz"):
+        #     for random_test_chunk in self.generate_random_in_chunks(0, num_ctrl_cells, num_test_cells):
+        #         if 'random_test_mask' not in locals():
+        #             random_test_mask = random_test_chunk
+        #         else:
+        #             random_test_mask = np.concatenate((random_test_mask, random_test_chunk))
+        #     with gzip.open(f"{self.data_path}/random_test_mask.pkl.gz", "wb") as f:
+        #         pkl.dump(random_test_mask, f)
+        # else:
+        #     with gzip.open(f"{self.data_path}/random_test_mask.pkl.gz", "rb") as f:
+        #         random_test_mask = pkl.load(f)
 
         print("\n\nInput masks generated.\n\n")
 
         time_elapsed = time.time() - self.start_time
-        print(f"\nnTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\nn")
+        print(f"\n\nTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\n\n")
 
         train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
         test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
 
         print("\n\nInput expression data generated.\n\n")
 
+        print("Train target shape:", train_target.shape)
+        print("\nTrain input expression shape and pert_corr shape\n")
+        print(train_input_expr.shape, pert_corr_train.shape)
         raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
         raw_train_target = train_target.X.toarray()
 
