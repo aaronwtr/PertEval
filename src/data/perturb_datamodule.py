@@ -93,6 +93,10 @@ class PertDataModule(LightningDataModule):
         self.replicate = replicate
         self.eval_type = eval_type
 
+        # get fm from **kwargs
+        self.fm = kwargs.get("fm", None)
+
+
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
@@ -161,16 +165,16 @@ class PertDataModule(LightningDataModule):
             adata = scpert_loader()
 
             self.train_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
-                                             self.spectra_parameters, stage="train")
+                                             self.spectra_parameters, self.fm, stage="train")
             self.val_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
-                                           self.spectra_parameters, stage="val")
+                                           self.spectra_parameters, self.fm, stage="val")
 
             if not self.eval_type:
                 self.test_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
-                                                self.spectra_parameters, stage="test")
+                                                self.spectra_parameters, self.fm, stage="test")
             else:
                 self.test_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
-                                                self.spectra_parameters, stage="test", eval_type=self.eval_type)
+                                                self.spectra_parameters, self.fm, stage="test", eval_type=self.eval_type)
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.

@@ -17,26 +17,35 @@ from src.utils.spectra import get_splits
 
 
 class PerturbData(Dataset):
-    def __init__(self, adata, data_path, spectral_param, replicate, spectra_params, stage, **kwargs):
+    def __init__(self, adata, data_path, spectral_param, replicate, spectra_params, fm, stage, **kwargs):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
         self.spectral_parameter = f"{spectral_param}_{replicate}"
         self.spectra_params = spectra_params
         self.stage = stage
+        self.fm = fm
         self.eval_type = kwargs.get("eval_type", None)
+
+        assert self.fm in ["raw_expression", "scgpt", "geneformer", "scfoundation", "scbert", "uce"], \
+            "fm must be set to 'raw_expression', 'scgpt', 'geneformer', 'scfoundation', 'scbert', or 'uce'!"
 
         if self.eval_type is not None and "_de" not in self.eval_type:
             raise ValueError("eval_type must be None or '{pert}_de'.")
 
-        if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
+        feature_path = f"{self.data_path}/input_features/{self.fm}"
+
+        if not os.path.exists(feature_path):
+            os.makedirs(feature_path)
+
+        if not os.path.exists(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz"):
             pp_data = self.preprocess_and_featurise_norman(adata)
             self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target = pp_data
         else:
-            with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
+            with gzip.open(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                 self.X_train, self.train_target = pkl.load(f)
-            with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
+            with gzip.open(f"{feature_path}/val_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                 self.X_val, self.val_target = pkl.load(f)
-            with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
+            with gzip.open(f"{feature_path}/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                 self.X_test, self.test_target = pkl.load(f)
 
         if self.data_name == "replogle_rpe1":
@@ -123,24 +132,26 @@ class PerturbData(Dataset):
                 combined_genes = list(set(highly_variable_genes) | set(missing_perts))
                 sg_hvg_adata = sg_pert_adata[:, combined_genes]
 
-                ctrl_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] == 'ctrl', :]
                 pert_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] != 'ctrl', :]
 
-                ctrl_adata.write(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad", compression='gzip')
                 pert_adata.write(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad", compression='gzip')
 
-            ctrl_X = ctrl_adata.X.toarray()
-            basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
-            subset_size = 500
+                ctrl_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] == 'ctrl', :]
+                ctrl_adata.write(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad", compression='gzip')
 
-            for cell in tqdm(range(pert_adata.shape[0])):
-                subset_X = ctrl_X[np.random.choice(ctrl_X.shape[0], subset_size), :]
-                basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
+                ctrl_X = ctrl_adata.X.toarray()
+                basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
+                subset_size = 500
 
-            basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
+                for cell in tqdm(range(pert_adata.shape[0])):
+                    subset_X = ctrl_X[np.random.choice(ctrl_X.shape[0], subset_size), :]
+                    basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
 
-            # noinspection PyTypeChecker
-            basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad", compression='gzip')
+                    basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
+
+                    # noinspection PyTypeChecker
+                    basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad",
+                                           compression='gzip')
             with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
                 pkl.dump(all_perts, f)
         else:
@@ -192,21 +203,58 @@ class PerturbData(Dataset):
         num_test_cells = test_target.shape[0]
         num_genes = basal_ctrl_adata.shape[1]
 
-        pert_corr_train = np.zeros((num_train_cells, num_genes))
-        for i, pert in tqdm(enumerate(all_perts_train), total=len(all_perts_train)):
-            pert_corr_train[i, :] = pert_corrs[pert]
-
-        pert_corr_test = np.zeros((num_test_cells, num_genes))
-        for i, pert in tqdm(enumerate(all_perts_test), total=len(all_perts_test)):
-            pert_corr_test[i, :] = pert_corrs[pert]
-
         random_train_mask = np.random.randint(0, num_ctrl_cells, num_train_cells)
         random_test_mask = np.random.randint(0, num_ctrl_cells, num_test_cells)
 
-        train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
-        test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
+        if self.fm == "raw_expression":
+            pert_corr_train = np.zeros((num_train_cells, num_genes))
+            for i, pert in tqdm(enumerate(all_perts_train), total=len(all_perts_train)):
+                pert_corr_train[i, :] = pert_corrs[pert]
 
-        raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
+            pert_corr_test = np.zeros((num_test_cells, num_genes))
+            for i, pert in tqdm(enumerate(all_perts_test), total=len(all_perts_test)):
+                pert_corr_test[i, :] = pert_corrs[pert]
+
+            train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
+            test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
+
+            raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
+            X_test = np.concatenate((test_input_expr, pert_corr_test))
+        else:
+            with gzip.open(f"{self.data_path}/{self.data_name}_{self.fm}_fm_ctrl.pkl", "rb") as f:
+                fm_ctrl_data = pkl.load(f)
+            with gzip.open(f"{self.data_path}/{self.data_name}_{self.fm}_fm_pert.pkl", "rb") as f:
+                fm_pert_data = pkl.load(f)
+
+            assert isinstance(fm_ctrl_data, (np.ndarray, anndata.AnnData)), ("fm_ctrl_data should be an array or an "
+                                                                             "h5ad file!")
+
+            assert hasattr(fm_ctrl_data, 'obsm'), "fm_ctrl_data should have an attribute 'obsm'!"
+
+            assert isinstance(fm_pert_data, dict), ("fm_pert_data should be a dictionary with perturbed gene as key and"
+                                                    "embedding as value!")
+
+            obsm_keys = fm_ctrl_data.obsm.keys()
+            for key in obsm_keys:
+                if 'X' in key:
+                    ctrl_embs = fm_ctrl_data.obsm[key]
+                    train_input_emb = ctrl_embs[random_train_mask, :]
+                    test_input_emb = ctrl_embs[random_test_mask, :]
+                    break
+                else:
+                    raise KeyError("fm_ctrl_data should have an attribute 'obsm' with 'X' key!")
+
+            pert_embs_train = np.zeros((num_train_cells, num_genes))
+            for i, pert in enumerate(all_perts_train):
+                pert_embs_train[i, :] = fm_pert_data[pert]
+
+            pert_embs_test = np.zeros((num_test_cells, num_genes))
+            for i, pert in enumerate(all_perts_test):
+                pert_embs_test[i, :] = fm_pert_data[pert]
+
+            raw_X_train = np.concatenate((train_input_emb, pert_embs_train), axis=1)
+            X_test = np.concatenate((test_input_emb, pert_embs_test), axis=1)
+
         raw_train_target = train_target.X.toarray()
 
         X_train, X_val, train_targets, val_targets = train_test_split(raw_X_train,
@@ -217,14 +265,14 @@ class PerturbData(Dataset):
         train_target = torch.from_numpy(train_targets)
         X_val = torch.from_numpy(X_val)
         val_target = torch.from_numpy(val_targets)
-        X_test = torch.from_numpy(np.concatenate((test_input_expr, pert_corr_test), axis=1))
+        X_test = torch.from_numpy(X_test)
         test_target = torch.from_numpy(test_target.X.toarray())
 
-        with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/{self.fm}/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_train, train_target), f)
-        with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/{self.fm}/val_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_val, val_target), f)
-        with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/{self.fm}/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_test, test_target), f)
 
         return X_train, train_target, X_val, val_target, X_test, test_target

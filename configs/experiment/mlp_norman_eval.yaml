@@ -12,11 +12,11 @@ total_genes: 2061
 
 data:
   data_name: "norman"
-  eval_type: "ARID1A_de"
-#  split: "0.80"
-#  replicate: "0"
+  eval_type: "SET_de"
+  split: "0.00"
+  replicate: "0"
 
-ckpt_path: "${paths.log_dir}train/runs/upbeat-snowball-108/checkpoints/best_model_at_epoch_019.ckpt"
+ckpt_path: "${paths.log_dir}train/runs/earnest-frost-107/checkpoints/best_model_at_epoch_019.ckpt"
 
 logger:
   wandb:
