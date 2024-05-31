@@ -2,6 +2,8 @@
 
 # run with `python src/train.py experiment=mlp_norman_train`
 
+model_type: "mlp" # pick from mlp or lr
+
 defaults:
   - override /model: mlp
   - override /logger: wandb
@@ -10,8 +12,45 @@ total_genes: 2061
 
 data:
   data_name: "norman"
+  split: "0.00"
+  replicate: 0
+
+trainer:
+  max_epochs: 30
+
+callbacks:
+  learning_rate_monitor:
+    _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: 'epoch'
 
 logger:
   wandb:
-    tags: ["mlp", "norman", "split_${data.split}", "replicate_${data.replicate}"]
-    group: "mlp_norman_${data.split}"
+    tags: ["${model_type}", "norman", "split_${data.split}", "replicate_${data.replicate}"]
+    group: "${model_type}_norman_${data.split}"
+
+model:
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    _partial_: true
+    mode: 'min'
+    factor: 0.1
+    patience: 10
+    threshold: 1e-4
+    min_lr: 3e-6
+
+
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 3e-4
+    weight_decay: 0.0
+
+#hydra:
+#  sweeper:
+#    params:
+#      +data.replicate: range(${repeats})
+
+#  scheduler:
+#    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+#    _partial_: true
+#    T_max: ${eval:'${trainer.max_epochs}//2'}

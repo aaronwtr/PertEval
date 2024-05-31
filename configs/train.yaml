@@ -27,6 +27,8 @@ defaults:
   # debugging config (enable through command line, e.g. `python train.py debug=default)
   - debug: null
 
+model_type: null # set in experiment config
+
 # task name, determines output directory path
 task_name: "train"
 

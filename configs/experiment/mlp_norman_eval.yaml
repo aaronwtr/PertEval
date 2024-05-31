@@ -2,6 +2,8 @@
 
 # run with `python src/eval.py experiment=mlp_norman_eval`
 
+model_type: "mlp" # pick from mlp or lr
+
 defaults:
   - override /model: mlp
   - override /logger: wandb
@@ -11,10 +13,12 @@ total_genes: 2061
 data:
   data_name: "norman"
   eval_type: "ARID1A_de"
+#  split: "0.80"
+#  replicate: "0"
 
-ckpt_path: "${paths.log_dir}train/runs/earnest-frost-107/checkpoints/best_model_at_epoch_019.ckpt"
+ckpt_path: "${paths.log_dir}train/runs/upbeat-snowball-108/checkpoints/best_model_at_epoch_019.ckpt"
 
 logger:
   wandb:
-    tags: ["mlp", "norman", "split_${data.split}", "replicate_${data.replicate}"]
-    group: "mlp_norman_${data.split}"
+    tags: ["eval", "${data.eval_type}","mlp", "norman", "split_${data.split}", "replicate_${data.replicate}"]
+    group: "test_mlp_norman_${data.split}"
