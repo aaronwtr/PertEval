@@ -71,8 +71,8 @@ class PertDataModule(LightningDataModule):
         """Initialize a `PertDataModule`.
 
         :param data_dir: The data directory. Defaults to `""`.
-        :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "gasperini", and
-        "repogle".
+        :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "replogle_k562", and
+        "replogle_rpe1".
         :param batch_size: The batch size. Defaults to `64`.
         :param num_workers: The number of workers. Defaults to `0`.
         :param pin_memory: Whether to pin memory. Defaults to `False`.
