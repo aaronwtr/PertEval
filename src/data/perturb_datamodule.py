@@ -57,8 +57,8 @@ class PertDataModule(LightningDataModule):
             self,
             data_dir: str = DATA_DIR,
             data_name: str = "norman",
-            sparsification_prob: float = 0.00,
-            replicates: int = 0,
+            split: float = 0.00,
+            replicate: int = 0,
             batch_size: int = 64,
             spectra_parameters: Optional[Dict[str, Any]] = None,
             num_workers: int = 0,
@@ -83,7 +83,7 @@ class PertDataModule(LightningDataModule):
         self.adata = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
-        self.spectral_parameter = f"{sparsification_prob:.2f}_{str(replicates)}"
+        self.spectral_parameter = f"{split:.2f}_{str(replicate)}"
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
