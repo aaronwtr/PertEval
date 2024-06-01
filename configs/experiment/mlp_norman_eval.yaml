@@ -15,8 +15,9 @@ data:
   eval_type: "SET_de"
   split: "0.00"
   replicate: "0"
+  fm: "raw_expression"
 
-ckpt_path: "${paths.log_dir}train/runs/earnest-frost-107/checkpoints/best_model_at_epoch_019.ckpt"
+ckpt_path: "${paths.log_dir}train/runs/2024-06-01_00-35-37/checkpoints/best_model_at_epoch_025.ckpt"
 
 logger:
   wandb:
