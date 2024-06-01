@@ -13,7 +13,7 @@ optimizer:
   weight_decay: 0.0
 
 criterion:
-  _target_: src.models.components.losses.WeightedRMSELoss
+  _target_: torch.nn.MSELoss
 
 
 scheduler: null # set this in experiment config

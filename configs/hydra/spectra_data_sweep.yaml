@@ -5,4 +5,4 @@ hydra:
   sweeper:
     params:
       data.split: 0.0
-      +data.replicates: range(${repeats})
+      data.replicate: range(${repeats})
