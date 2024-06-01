@@ -12,4 +12,10 @@ optimizer:
   lr: 3e-4
   weight_decay: 0.0
 
+criterion:
+  _target_: src.models.components.losses.WeightedRMSELoss
+
+
 scheduler: null # set this in experiment config
+
+

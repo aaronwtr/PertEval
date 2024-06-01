@@ -49,7 +49,8 @@ class PredictionModule(LightningModule):
             y = y.to(torch.float32)
 
         preds = self.forward(x)
-        loss = self.criterion(preds, y)
+        loss = self.criterion(preds, y, x)
+
         return loss, preds, y
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> torch.Tensor:
