@@ -48,10 +48,12 @@ class PredictionModule(LightningModule):
         if y.dtype != torch.float32:
             y = y.to(torch.float32)
 
+        input_expr = x[:, :x.shape[1] // 2]
         preds = self.forward(x)
-        loss = self.criterion(preds, y, x)
+        pert_effect = y - input_expr
+        loss = torch.sqrt(self.criterion(preds, pert_effect))
 
-        return loss, preds, y
+        return loss, preds, pert_effect
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> torch.Tensor:
         loss, preds, targets = self.model_step(batch)
@@ -75,11 +77,12 @@ class PredictionModule(LightningModule):
             gene_expr = x[:, :x.shape[1] // 2]
             mean_expr = torch.mean(gene_expr, dim=0)
             mean_expr = mean_expr.repeat(targets.shape[0], 1)
+            mean_eff = mean_expr - gene_expr
             de_idx = torch.tensor([int(idx[0]) for idx in de_idx])
             de_idx = torch.tensor(de_idx)
             preds = preds[:, de_idx]
             targets = targets[:, de_idx]
-            self.baseline_mse(mean_expr[:, de_idx], targets)
+            self.baseline_mse(mean_eff[:, de_idx], targets)
             self.log("test_baseline/mse", self.baseline_mse, on_step=False, on_epoch=True, prog_bar=False)
             self.test_mse(preds, targets)
             self.log("test_de/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
