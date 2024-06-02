@@ -59,8 +59,8 @@ class PertDataModule(LightningDataModule):
             self,
             data_dir: str = DATA_DIR,
             data_name: str = "norman",
-            split: str = "0.00",
-            replicate: str = "0",
+            split: float = 0.00,
+            replicate: int = 0,
             batch_size: int = 64,
             spectra_parameters: Optional[Dict[str, Any]] = None,
             eval_type: Optional[str] = None,
@@ -89,13 +89,11 @@ class PertDataModule(LightningDataModule):
         self.test_dataset = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
-        self.split = split
-        self.replicate = replicate
         self.eval_type = eval_type
+        self.spectral_parameter = f"{split:.2f}_{str(replicate)}"
 
         # get fm from **kwargs
         self.fm = kwargs.get("fm", None)
-
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
@@ -164,16 +162,16 @@ class PertDataModule(LightningDataModule):
             scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
             adata = scpert_loader()
 
-            self.train_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
+            self.train_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
                                              self.spectra_parameters, self.fm, stage="train")
-            self.val_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
+            self.val_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
                                            self.spectra_parameters, self.fm, stage="val")
 
             if not self.eval_type:
-                self.test_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
+                self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
                                                 self.spectra_parameters, self.fm, stage="test")
             else:
-                self.test_dataset = PerturbData(adata, self.data_path, self.split, self.replicate,
+                self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
                                                 self.spectra_parameters, self.fm, stage="test", eval_type=self.eval_type)
 
     def train_dataloader(self) -> DataLoader[Any]:
