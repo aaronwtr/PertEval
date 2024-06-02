@@ -4,5 +4,5 @@
 hydra:
   sweeper:
     params:
-      data.split: 0.0
       data.replicate: 0
+      data.name: "replogle_rpe1"
