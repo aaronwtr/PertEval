@@ -417,7 +417,6 @@ class PerturbData(Dataset):
 
         print("\n\nInput masks generated.\n\n")
 
-        time_elapsed = time.time() - self.start_time
         print(f"\n\nTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\n\n")
 
         train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
@@ -442,10 +441,6 @@ class PerturbData(Dataset):
         X_test = torch.from_numpy(np.concatenate((test_input_expr, pert_corr_test), axis=1))
         test_target = torch.from_numpy(test_target.X.toarray())
 
-        print("\n\nData split into train, validation, and test sets.\n\n")
-        time_elapsed = time.time() - self.start_time
-        print(f"\nnTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\nn")
-
         # save data as pickle without gzip
 
         with open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl", "wb") as f:
@@ -462,10 +457,6 @@ class PerturbData(Dataset):
         #     pkl.dump((X_val, val_target), f)
         # with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
         #     pkl.dump((X_test, test_target), f)
-
-        print("\n\nData saved to disk.\n\n")
-        time_elapsed = time.time() - self.start_time
-        print(f"\nnTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\nn")
 
         raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
                              f"on the next multirun...")
