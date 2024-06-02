@@ -18,20 +18,24 @@ class LinearRegressionModel(torch.nn.Module):
 
 
 class MLP(torch.nn.Module):
-    def __init__(self, in_dim: int,
-                 hidden_dim: int,
-                 out_dim: int,
-                 layer_activation: nn.Module = nn.ReLU(), ):
+    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, num_layers: int,
+                 layer_activation: nn.Module = nn.ReLU()):
         super().__init__()
         self.layer_activation = layer_activation
-        self.fc1 = torch.nn.Linear(in_dim, hidden_dim)
-        self.fc2 = torch.nn.Linear(hidden_dim, out_dim)
-        self._initialize_weights()
+
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(in_dim, hidden_dim))
+        for _ in range(num_layers - 1):
+            self.layers.append(nn.Linear(hidden_dim, hidden_dim))
+        self.layers.append(nn.Linear(hidden_dim, out_dim))
+
+        if self.initialise_weights:
+            self._initialize_weights()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.fc1(x)
-        x = self.layer_activation(x)
-        x = self.fc2(x)
+        for layer in self.layers[:-1]:
+            x = self.layer_activation(layer(x))
+        x = self.layers[-1](x)
         return x
 
     def _initialize_weights(self):
