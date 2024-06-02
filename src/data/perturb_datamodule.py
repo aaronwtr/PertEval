@@ -83,7 +83,13 @@ class PertDataModule(LightningDataModule):
         self.adata = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
-        self.spectral_parameter = f"{split:.2f}_{str(replicate)}"
+        # check if split is float
+        if isinstance(split, float):
+            self.spectral_parameter = f"{split:.2f}_{str(replicate)}"
+        elif isinstance(split, str):
+            self.spectral_parameter = f"{split}_{str(replicate)}"
+        else:
+            raise ValueError("split must be a float or a string!")
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
