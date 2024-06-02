@@ -45,10 +45,7 @@ hydra:
 
     # define hyperparameter search space
     params:
-      model.optimizer.lr: choice(3e-6, 3e-5, 3e-4, 3e-3)
-      model.scheduler.factor: range(0.1, 0.5, step=0.1)
-      model.scheduler.patience: range(5, 20, step=5)
-      model.scheduler.threshold: choice(0, 1e-4, 1e-3)
+      model.optimizer.lr: choice(9e-6, 1e-5, 2e-5, 3e-5, 4e-3, 5e-5)
 #      data.batch_size: choice(32, 64, 128, 256)
 #      model.net.lin1_size: choice(64, 128, 256)
 #      model.net.lin2_size: choice(64, 128, 256)

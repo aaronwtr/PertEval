@@ -5,11 +5,13 @@ net:
   in_dim: ${eval:'${total_genes}*2'}
   hidden_dim: 256
   out_dim: ${total_genes}
+  num_layers: 2
+  initialise_weights: True
 
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 3e-4
+  lr: 1e-5
   weight_decay: 0.0
 
 criterion:

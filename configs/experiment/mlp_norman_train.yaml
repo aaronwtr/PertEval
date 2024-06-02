@@ -35,7 +35,7 @@ model:
   optimizer:
     _target_: torch.optim.Adam
     _partial_: true
-    lr: 3e-4
+    lr: 3e-5
     weight_decay: 0.0
 
   scheduler:
@@ -43,8 +43,7 @@ model:
     _partial_: true
     mode: 'min'
     factor: 0.1
-    patience: 10
-    threshold: 1e-4
+    patience: 15
     min_lr: 3e-9
 
 #hydra:
