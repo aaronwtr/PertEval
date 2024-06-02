@@ -45,7 +45,4 @@ hydra:
 
     # define hyperparameter search space
     params:
-      model.net.hidden_dim: choice(64, 128, 256, 512)
-      model.net.num_layers: choice(1, 2, 3, 4)
-      model.net.initialise_weights: choice(True, False)
-      data.batch_size: choice(32, 64, 128, 256)
+      model.net.hidden_dim: choice(256, 512, 1024, 2048)
