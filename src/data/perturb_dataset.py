@@ -244,14 +244,13 @@ class PerturbData(Dataset):
         X_test = torch.from_numpy(np.concatenate((test_input_expr, pert_corr_test), axis=1))
         test_target = torch.from_numpy(test_target.X.toarray())
 
-        with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/{self.fm}/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_train, train_target), f)
-        with gzip.open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/{self.fm}/val_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_val, val_target), f)
-        with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
+        with gzip.open(f"{self.data_path}/input_features/{self.fm}/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_test, test_target), f)
-
-
+            
         raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
                              f"on the next multirun...")
 
