@@ -19,15 +19,14 @@ from src.utils.spectra import get_splits
 
 
 class PerturbData(Dataset):
-    def __init__(self, adata, data_path, spectral_parameter, spectra_params, stage, **kwargs):
+    def __init__(self, adata, data_path, spectral_parameter, spectra_params, fm, stage, **kwargs):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
-        # self.de_genes = de_genes
         self.spectral_parameter = spectral_parameter
         self.spectra_params = spectra_params
         self.stage = stage
-
-        self.start_time = time.time()
+        self.fm = fm
+        self.eval_type = kwargs.get("eval_type", None)
 
         if self.data_name == "norman":
             if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
