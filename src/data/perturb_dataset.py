@@ -417,16 +417,11 @@ class PerturbData(Dataset):
 
         print("\n\nInput masks generated.\n\n")
 
-        print(f"\n\nTime elapsed: {time.strftime('%H:%M:%S', time.gmtime(time_elapsed))}\n\n")
-
         train_input_expr = basal_ctrl_adata[random_train_mask, :].X.toarray()
         test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
 
         print("\n\nInput expression data generated.\n\n")
 
-        print("Train target shape:", train_target.shape)
-        print("\nTrain input expression shape and pert_corr shape\n")
-        print(train_input_expr.shape, pert_corr_train.shape)
         raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
         raw_train_target = train_target.X.toarray()
 
