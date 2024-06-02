@@ -250,7 +250,7 @@ class PerturbData(Dataset):
             pkl.dump((X_val, val_target), f)
         with gzip.open(f"{self.data_path}/input_features/{self.fm}/test_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
             pkl.dump((X_test, test_target), f)
-            
+
         raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
                              f"on the next multirun...")
 

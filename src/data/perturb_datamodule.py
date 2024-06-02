@@ -83,6 +83,8 @@ class PertDataModule(LightningDataModule):
         self.adata = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
+        self.fm = kwargs.get("fm", None)
+
         # check if split is float
         if isinstance(split, float):
             self.spectral_parameter = f"{split:.2f}_{str(replicate)}"
@@ -94,9 +96,6 @@ class PertDataModule(LightningDataModule):
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
-
-        print("\n\n Data name: ", self.data_name, "\n\n")
-        print("\n\n Data dir: ", data_dir, "\n\n")
 
         self.data_path = os.path.join(data_dir, self.data_name)
 
@@ -162,11 +161,11 @@ class PertDataModule(LightningDataModule):
             adata = scpert_loader()
 
             self.train_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
-                                        stage="train")
+                                             self.fm, stage="train")
             self.val_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
-                                      stage="val")
+                                           self.fm, stage="val")
             self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
-                                       stage="test")
+                                            self.fm, stage="test")
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
@@ -174,12 +173,12 @@ class PertDataModule(LightningDataModule):
         :return: The train dataloader.
         """
         return DataLoader(
-                self.train_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=True,
-            )
+            self.train_dataset,
+            batch_size=self.batch_size_per_device,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            shuffle=True,
+        )
 
     def val_dataloader(self) -> DataLoader[Any]:
         """Create and return the validation dataloader.
@@ -187,12 +186,12 @@ class PertDataModule(LightningDataModule):
         :return: The validation dataloader.
         """
         return DataLoader(
-                self.val_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=False,
-            )
+            self.val_dataset,
+            batch_size=self.batch_size_per_device,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            shuffle=False,
+        )
 
     def test_dataloader(self) -> DataLoader[Any]:
         """Create and return the test dataloader.
@@ -200,12 +199,12 @@ class PertDataModule(LightningDataModule):
         :return: The test dataloader.
         """
         return DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                shuffle=False,
-            )
+            self.test_dataset,
+            batch_size=self.batch_size_per_device,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            shuffle=False,
+        )
 
     def teardown(self, stage: Optional[str] = None) -> None:
         """Lightning hook for cleaning up after `trainer.fit()`, `trainer.validate()`,
