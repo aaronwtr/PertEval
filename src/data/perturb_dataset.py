@@ -437,12 +437,11 @@ class PerturbData(Dataset):
         test_target = torch.from_numpy(test_target.X.toarray())
 
         # save data as pickle without gzip
-
-        with open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl", "wb") as f:
+        with open(f"{self.data_path}/input_features/{self.fm}/train_data_{self.spectral_parameter}.pkl", "wb") as f:
             pkl.dump((X_train, train_target), f)
-        with open(f"{self.data_path}/input_features/val_data_{self.spectral_parameter}.pkl", "wb") as f:
+        with open(f"{self.data_path}/input_features/{self.fm}/val_data_{self.spectral_parameter}.pkl", "wb") as f:
             pkl.dump((X_val, val_target), f)
-        with open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl", "wb") as f:
+        with open(f"{self.data_path}/input_features/{self.fm}/test_data_{self.spectral_parameter}.pkl", "wb") as f:
             pkl.dump((X_test, test_target), f)
 
         # with gzip.open(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz", "wb") as f:
