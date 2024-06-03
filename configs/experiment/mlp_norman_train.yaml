@@ -18,9 +18,9 @@ data:
   fm: "raw_expression"
 
 trainer:
-  max_epochs: 30
+  max_epochs: 1
   accelerator: gpu
-  devices: 2
+  devices: 1
 
 callbacks:
   learning_rate_monitor:
@@ -29,7 +29,7 @@ callbacks:
 
 logger:
   wandb:
-    tags: ["${model_type}", "${data.data_name}", "split_${data.split}", "replicate_${data.replicate}", "hpo"]
+    tags: ["${model_type}", "${data.data_name}", "split_${data.split}", "replicate_${data.replicate}"]
     group: "${model_type}_${data.data_name}_${data.split}"
 
 model:
@@ -45,4 +45,5 @@ model:
     mode: 'min'
     factor: 0.1
     patience: 15
+    threshold: 1e-4
     min_lr: 5e-9

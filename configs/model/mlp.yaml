@@ -3,7 +3,7 @@ _target_: src.models.prediction_module.PredictionModule
 net:
   _target_: src.models.components.predictors.MLP
   in_dim: ${eval:'${total_genes}*2'}
-  hidden_dim: 512
+  hidden_dim: 1024
   out_dim: ${total_genes}
   num_layers: 1
 

@@ -2,7 +2,9 @@
 ignore_warnings: False
 
 # ask user for tags if none are provided in the config
-enforce_tags: True
+enforce_tags: False
 
 # pretty print config tree at the start of the run using Rich library
 print_config: True
+
+distributed_storage: True
