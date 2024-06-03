@@ -29,14 +29,14 @@ callbacks:
 
 logger:
   wandb:
-    tags: ["${model_type}", "norman", "split_${data.split}", "replicate_${data.replicate}", "hpo"]
-    group: "${model_type}_norman_${data.split}"
+    tags: ["${model_type}", "${data.data_name}", "split_${data.split}", "replicate_${data.replicate}", "hpo"]
+    group: "${model_type}_${data.data_name}_${data.split}"
 
 model:
   optimizer:
     _target_: torch.optim.Adam
     _partial_: true
-    lr: 3e-5
+    lr: 5e-5
     weight_decay: 0.0
 
   scheduler:
@@ -45,14 +45,4 @@ model:
     mode: 'min'
     factor: 0.1
     patience: 15
-    min_lr: 3e-9
-
-#hydra:
-#  sweeper:
-#    params:
-#      +data.replicate: range(${repeats})
-
-#  scheduler:
-#    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
-#    _partial_: true
-#    T_max: ${eval:'${trainer.max_epochs}//2'}
+    min_lr: 5e-9
