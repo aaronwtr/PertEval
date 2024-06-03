@@ -16,4 +16,6 @@ job_logging:
   handlers:
     file:
       # Incorporates fix from https://github.com/facebookresearch/hydra/pull/2242
-      filename: ${hydra.runtime.output_dir}/${task_name}.log
+      filename: "${hydra.runtime.output_dir}/train_${model_type}_${data.split}_${data.replicate}.log"
+      #filename: "${hydra.runtime.output_dir}_${task_name}_${model_type}_${data.split}_${data.replicate}/train.log"
+

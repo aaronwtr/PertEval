@@ -2,17 +2,24 @@
 
 defaults:
   - _self_
-  - data: perturb # choose datamodule with `test_dataloader()` for evaluation
-  - model: gears
-  - logger: null
-  - trainer: default
+  - data: perturb
+  - model: null # must be specified in experiment
+  - callbacks: default
+  - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - trainer: cpu
   - paths: default
-  - extras: default
+  - extras: null
   - hydra: default
 
-task_name: "eval"
+  # experiment configs allow for version control of specific hyperparameters
+  # e.g. best hyperparameters for given model and datamodule
+  - experiment: null
+
+model_type: null # set in experiment config
+
+task_name: "test"
 
 tags: ["dev"]
 
 # passing checkpoint path is necessary for evaluation
-ckpt_path: ???
+ckpt_path: "test"

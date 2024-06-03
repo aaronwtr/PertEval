@@ -27,6 +27,8 @@ defaults:
   # debugging config (enable through command line, e.g. `python train.py debug=default)
   - debug: null
 
+model_type: null # set in experiment config
+
 # task name, determines output directory path
 task_name: "train"
 
@@ -37,7 +39,7 @@ total_genes: null
 # tags to help you identify your experiments
 # you can overwrite this in experiment configs
 # overwrite from command line with `python train.py tags="[first_tag, second_tag]"`
-tags: ["mlp", "norman", "split_${data.split}", "replicate_${data.replicate}"]
+tags: []
 
 # set False to skip model training
 train: True

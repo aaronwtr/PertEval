@@ -1,5 +1,7 @@
 import os
 
+import pickle as pkl
+
 from typing import Any, Dict, Optional
 from pertpy import data as scpert_data
 
@@ -61,6 +63,7 @@ class PertDataModule(LightningDataModule):
             replicate: int = 0,
             batch_size: int = 64,
             spectra_parameters: Optional[Dict[str, Any]] = None,
+            eval_type: Optional[str] = None,
             num_workers: int = 0,
             pin_memory: bool = False,
             **kwargs: Any,
@@ -68,8 +71,8 @@ class PertDataModule(LightningDataModule):
         """Initialize a `PertDataModule`.
 
         :param data_dir: The data directory. Defaults to `""`.
-        :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "gasperini", and
-        "repogle".
+        :param data_name: The name of the dataset. Defaults to `"norman"`. Can pick from "norman", "replogle_k562", and
+        "replogle_rpe1".
         :param batch_size: The batch size. Defaults to `64`.
         :param num_workers: The number of workers. Defaults to `0`.
         :param pin_memory: Whether to pin memory. Defaults to `False`.
@@ -81,8 +84,13 @@ class PertDataModule(LightningDataModule):
         self.pert_data = None
         self.pertmodule = None
         self.adata = None
+        self.train_dataset = None
+        self.val_dataset = None
+        self.test_dataset = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
+        self.eval_type = eval_type
+        
         self.fm = kwargs.get("fm", None)
 
         # check if split is float
@@ -160,12 +168,17 @@ class PertDataModule(LightningDataModule):
             scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
             adata = scpert_loader()
 
-            self.train_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
-                                             self.fm, stage="train")
-            self.val_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
-                                           self.fm, stage="val")
-            self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
-                                            self.fm, stage="test")
+            self.train_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
+                                             self.spectra_parameters, self.fm, stage="train")
+            self.val_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
+                                           self.spectra_parameters, self.fm, stage="val")
+
+            if not self.eval_type:
+                self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
+                                                self.spectra_parameters, self.fm, stage="test")
+            else:
+                self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
+                                                self.spectra_parameters, self.fm, stage="test", eval_type=self.eval_type)
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
@@ -229,6 +242,7 @@ class PertDataModule(LightningDataModule):
         :param state_dict: The datamodule state returned by `self.state_dict()`.
         """
         pass
+
 
 if __name__ == "__main__":
     _ = PertDataModule()
