@@ -21,4 +21,17 @@ rootutils       # standardizing the project root setup
 pre-commit      # hooks for applying linters on commit
 rich            # beautiful text formatting in terminal
 pytest          # tests
-# sh            # for running bash commands in some tests (linux/macos only)
+anndata==0.10.6
+networkx==3.2.1
+numpy==1.26.4
+omegaconf==2.3.0
+packaging==24.0
+pandas==2.2.2
+pertpy==0.7.0
+pytest==8.1.1
+rich==13.7.1
+rootutils==1.0.7
+scanpy==1.10.0
+scipy==1.13.1
+setuptools==68.2.0
+tqdm==4.66.2
