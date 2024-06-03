@@ -1,6 +1,6 @@
 <div align="center">
 
-# BioFoundry: Benchmarking biological foundation models and task-specific models across a variety of tasks
+# PerturBench: Benchmarking Single-Cell Foundation Models for Perturbation Response Prediction
 
 <a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a>
 <a href="https://pytorchlightning.ai/"><img alt="Lightning" src="https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white"></a>
@@ -13,49 +13,43 @@
 
 ## Description
 
-BioFoundry is a comprehensive benchmarking suite designed for evaluating single-cell foundation models and task-specific single-cell models. It offers out-of-the-box evaluations across a range of models and datasets, enabling researchers and developers to assess the performance of their models in a standardized manner.
-
-The codebase is highly extensible, allowing seamless integration of custom models and datasets. You can incorporate your own models by creating a [LightningModule](#making-a-lightning-module), and introduce new datasets by implementing a [LightningDataModule](#making-a-lightning-datamodule).
+PerturBench is a comprehensive benchmarking suite designed for evaluating perturbation response prediction.
 
 Key features:
 
-- **Extensive Model Support**: Evaluate a wide range of single-cell foundation models and task-specific models.
-- **Standardized Evaluations**: Consistent benchmarking protocols and metrics for fair comparisons.
-- **Flexible Integration**: Easily extend the codebase with custom models and datasets.
+- **Extensive Model Support**: Evaluate a wide range of single-cell foundation models using simple probes for perturbation response prediction.
+- **Standardized Evaluations**: Consistent benchmarking protocols and metrics for fair comparisons in transcriptomic perturbation prediction.
+- **Flexible Integration**: Easily extend the codebase with custom models and datasets for perturbation prediction tasks.
 - **Modular Design**: Built on top of PyTorch Lightning and Hydra, ensuring code organization and configurability.
 
 ## Installation
 
 #### Pip
 
-{ADD PIP INSTALL BioFoundry}
+{ADD PIP INSTALL PerturBench}
 
 Setting up conda environment:
 ```bash
 # clone project
-git clone https://github.com/aaronwtr/BioFoundry
-cd BioFoundry
+git clone https://github.com/aaronwtr/PerturBench
+cd PerturBench
 
 # [OPTIONAL] create conda or virtual environment
-conda create -n biofnd python=3.10
-conda activate biofnd
-```
+conda create -n pertbench python=3.10
+conda activate pertbench
 
 Alternatively, using virtualenv:
 ```
-python3.10 -m venv biofnd
+`python3.10 -m venv pertbench`
 
-# Windows:
-biofnd\Scripts\activate
+### Windows:
+`pertbench\Scripts\activate`
 
-# MacOS/Linux
-source biofnd/bin/activate
+### MacOS/Linux
+`source pertbench/bin/activate`
 
-# install pytorch according to instructions
-# https://pytorch.org/get-started/
-
-# install requirements
-pip install -r requirements.txt
+### Install requirements
+`pip install -r requirements.txt`
 ```
 
 #### Conda
@@ -66,10 +60,10 @@ git clone https://github.com/YourGithubName/your-repo-name
 cd your-repo-name
 
 # create conda environment and install dependencies
-conda env create -f environment.yaml -n biofnd
+conda env create -f environment.yaml -n pertbench
 
 # activate conda environment
-conda activate biofnd
+conda activate pertbench
 ```
 
 ## Making a Lightning DataModule 
@@ -115,6 +109,18 @@ Evals work similar by calling
 ```bash
 python src/eval.py ckpt_path="/path/to/ckpt/name.ckpt"
 ```
+
+## Evaluating on differentially expressed gene for a perturbation 
+
+TODO: provide scripts for this 
+
+Step 1) Obtain indices for DE genes for perturbation of interest matched with model input genes
+
+Step 2) Run eval.py from an experiment config (e.g. mlp_norman_eval.yaml)
+
+Step 3) Set eval_type as {perturbation}_de and set ckpt_path pointing to the checkpoint for the split being evaluated in the experiment eval.yaml
+
+Step 4) Set split and replicate in the experiment eval.yaml
 
 ## Setting up Weights and Biases logging and experiment tracking
 First install wandb via 

@@ -22,7 +22,7 @@ class PerturbData(Dataset):
     def __init__(self, adata, data_path, spectral_parameter, spectra_params, fm, stage, **kwargs):
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
-        self.spectral_parameter = spectral_parameter
+        self.spectral_parameter = f"{spectral_parameter}_{replicate}"
         self.spectra_params = spectra_params
         self.stage = stage
         self.fm = fm
