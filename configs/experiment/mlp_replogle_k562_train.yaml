@@ -1,0 +1,48 @@
+# @package _global_
+
+# run with `python src/train.py experiment=mlp_norman_train`
+
+model_type: "mlp" # pick from mlp or lr
+
+defaults:
+  - override /model: mlp
+  - override /logger: wandb
+
+total_genes: 2061 # or embedding dim for scFM embeddings
+
+data:
+  data_name: "replogle_k562"
+  split: 0.00
+  replicate: 0
+  batch_size: 32
+  fm: "raw_expression"
+
+trainer:
+  max_epochs: 30
+  accelerator: gpu
+  devices: 2
+
+callbacks:
+  learning_rate_monitor:
+    _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: 'epoch'
+
+logger:
+  wandb:
+    tags: ["${model_type}", "${data.data_name}", "split_${data.split}", "replicate_${data.replicate}", "hpo"]
+    group: "${model_type}_${data.data_name}_${data.split}"
+
+model:
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 1e-3
+    weight_decay: 0.0
+
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    _partial_: true
+    mode: 'min'
+    factor: 0.1
+    patience: 15
+    min_lr: 5e-9
