@@ -22,7 +22,6 @@ class MLP(torch.nn.Module):
                  layer_activation: nn.Module = nn.ReLU()):
         super().__init__()
         self.layer_activation = layer_activation
-        self.initialise_weights = initialise_weights
 
         self.layers = nn.ModuleList()
         self.layers.append(nn.Linear(in_dim, hidden_dim))
