@@ -1,17 +1,18 @@
 from src.utils.spectra.spectra import Spectra
 from src.utils.spectra.dataset import SpectraDataset
+from anndata import AnnData
 
 import numpy as np
 from tqdm import tqdm
-from gears.pertdata import PertData
+#from gears.pertdata import PertData #removed n.b. 
 
 
 class PerturbGraphData(SpectraDataset):
     def parse(self, pert_data):
-        if isinstance(pert_data, PertData):
-            self.adata = pert_data.adata
-        else:
+        if isinstance(pert_data, AnnData):
             self.adata = pert_data
+        else:
+            self.adata = pert_data.adata
         self.control_expression = self.adata[self.adata.obs['condition'] == 'ctrl'].X.toarray().mean(axis=0)
         return [p for p in self.adata.obs['condition'].unique() if p != 'ctrl']
 

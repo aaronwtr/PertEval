@@ -1,12 +1,13 @@
 The different files/code that need to be changed to use foundation model embeddings to generate results. Assuming you already have the control and pert embeddings.
+Genrally where code needs to be changed will be commnted with comment starting TODO .... 
 
-in mlp_norman_train.yaml line 18 change fm to your foundation model name e.g. for scgpt have  fm: "scgpt"
+in mlp_norman_train.yaml (in dir configs/expriments) line 18 change fm to your foundation model name e.g. for scgpt have  fm: "scgpt"
 
 in mlp_norman_train.yaml line 11 change total_genes to the embedding dim of your data e.g for an embd dim of 512 we have total_genes: 512 
 
-change the path in cluster.yaml, line 7, scratch_dir so it points to your scratch (assuming your data files are in scratch)
+assuming all your code is in the scratch no need to change  paths configs/paths (its easier like this so would reccomend) ingore the rest of this line if all your codes in scratch  but if not change  cluster.yaml, line 7, scratch_dir so it points to your scratch (you'll then also need to change your eval.sh script to add  paths=cluster)
 
-check line 10 in cluster.yaml to make sure your embeddings data are in this dir 
+check line 7 data_dir in configs/pahts.default.yaml to make sure your embeddings data are in this dir 
 
 make sure path to embeddings is correct in perturb_dataset.py (around 254, 256 code shown below)
 else:
@@ -16,5 +17,5 @@ else:
         fm_pert_data = pkl.load(f)
 
 Note that in the above self.fm referes to the name for fm you set in mlp_norman_train.yaml 
-self.data_path is the data_dir set above ()
+self.data_path is the data_dir set above
 

@@ -13,6 +13,8 @@ from src.data.perturb_dataset import PerturbData
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
 ROOT_DIR = os.path.dirname(SRC_DIR)
+#TODO make below nicer
+#DATA_DIR = '/data/scratch/wpw035/BioFoundry/data/splits/perturb'
 with open(f'{ROOT_DIR}/cache/data_dir_cache.txt', 'r') as f:
     DATA_DIR = f.read().strip()
 
@@ -57,7 +59,7 @@ class PertDataModule(LightningDataModule):
 
     def __init__(
             self,
-            data_dir: str = DATA_DIR,
+            data_dir: str = '',
             data_name: str = "norman",
             split: float = 0.00,
             replicate: int = 0,
@@ -104,7 +106,8 @@ class PertDataModule(LightningDataModule):
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
-
+        print(data_dir)
+        print(self.data_name)
         self.data_path = os.path.join(data_dir, self.data_name)
 
         if not os.path.exists(self.data_path):
@@ -126,6 +129,7 @@ class PertDataModule(LightningDataModule):
         self.prepare_data()
         self.setup()
 
+    #TODO maybe remove if taking too long
     def prepare_data(self) -> None:
         """Put all downloading and preprocessing logic that only needs to happen on one device here. Lightning ensures
         that `self.prepare_data()` is called only within a single process on CPU, so you can safely add your logic

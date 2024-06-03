@@ -13,6 +13,7 @@ from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from hydra.errors import HydraException
+from scipy.sparse import csr_matrix
 from scipy.stats import pearsonr
 
 from src.utils.spectra import get_splits
@@ -142,6 +143,10 @@ class PerturbData(Dataset):
             if not os.path.exists(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad"):
                 pert_adata.write(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad", compression='gzip')
 
+            if os.path.exists(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
+                basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+                pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
+                
             if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
                 sc.pp.normalize_total(sg_pert_adata)
                 sc.pp.log1p(sg_pert_adata)
@@ -163,19 +168,31 @@ class PerturbData(Dataset):
                 basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
                 subset_size = 500
 
-                for cell in tqdm(range(pert_adata.shape[0])):
-                    subset_X = ctrl_X[np.random.choice(ctrl_X.shape[0], subset_size), :]
-                    basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
+                if self.fm == 'raw_expression':
+                    for cell in tqdm(range(pert_adata.shape[0])):
+                        subset_X = ctrl_X[np.random.choice(ctrl_X.shape[0], subset_size), :]
+                        basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
+                        
+                        basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
 
-                    basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
-
-                    # noinspection PyTypeChecker
-                    basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad",
+                        # noinspection PyTypeChecker
+                        basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad",
                                            compression='gzip')
+                else:
+                    #TODO this needs sorting  right shape now of ~50K cls but our control embds only have ~11K cells 
+                    #so need to sample with replacement somehow to get this up to 50K.
+                    basal_ctrl_X = csr_matrix(np.zeros((pert_adata.shape[0], ctrl_adata.shape[1]))) 
+                    basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var) #TODO this needs sorting 
+                    basal_ctrl_adata.write(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad",
+                                        compression='gzip')
             with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
                 pkl.dump(all_perts, f)
         else:
-            basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+            if self.fm == 'raw_expression':
+                basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+            else: 
+                basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+
             pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
 
         # these just need to be the same between datasets, irrespective of order
@@ -206,28 +223,30 @@ class PerturbData(Dataset):
         all_perts_train = train_target.obs['condition'].values
         all_perts_test = test_target.obs['condition'].values
 
-        if not os.path.exists(f"{self.data_path}/pert_corrs.pkl"):
-            all_gene_expression = basal_ctrl_adata.X
+        if self.fm == 'raw_expression':
+            if not os.path.exists(f"{self.data_path}/pert_corrs.pkl"):
+                all_gene_expression = basal_ctrl_adata.X
 
-            pert_corrs = {}
-            for pert in tqdm(unique_perts, total=len(unique_perts)):
-                correlations = np.zeros(basal_ctrl_adata.shape[1])
-                ensg_id = gene_to_ensg[pert]
-                pert_idx = basal_ctrl_adata.var_names.get_loc(ensg_id)
-                basal_expr_pert = basal_ctrl_adata.X[:, pert_idx].flatten()
-                for i in range(all_gene_expression.shape[1]):
-                    corr = np.corrcoef(basal_expr_pert, all_gene_expression[:, i])[0, 1]
-                    if np.isnan(corr):
-                        corr = 0
-                    correlations[i] = corr
-                pert_corrs[pert] = correlations
+                pert_corrs = {}
+                for pert in tqdm(unique_perts, total=len(unique_perts)):
+                    correlations = np.zeros(basal_ctrl_adata.shape[1])
+                    ensg_id = gene_to_ensg[pert]
+                    pert_idx = basal_ctrl_adata.var_names.get_loc(ensg_id)
+                    basal_expr_pert = basal_ctrl_adata.X[:, pert_idx].flatten()
+                    for i in range(all_gene_expression.shape[1]):
+                        corr = np.corrcoef(basal_expr_pert, all_gene_expression[:, i])[0, 1]
+                        if np.isnan(corr):
+                            corr = 0
+                        correlations[i] = corr
+                    pert_corrs[pert] = correlations
 
-            with open(f"{self.data_path}/pert_corrs.pkl", "wb") as f:
-                pkl.dump(pert_corrs, f)
-        else:
-            with open(f"{self.data_path}/pert_corrs.pkl", "rb") as f:
-                pert_corrs = pkl.load(f)
-
+                with open(f"{self.data_path}/pert_corrs.pkl", "wb") as f:
+                    pkl.dump(pert_corrs, f)
+            else:
+                with open(f"{self.data_path}/pert_corrs.pkl", "rb") as f:
+                    pert_corrs = pkl.load(f)
+        print('ctrl shapes')
+        print(basal_ctrl_adata.shape[0])    
         num_ctrl_cells = basal_ctrl_adata.shape[0]
         num_train_cells = train_target.shape[0]
         num_test_cells = test_target.shape[0]
@@ -250,29 +269,36 @@ class PerturbData(Dataset):
 
             raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
             X_test = np.concatenate((test_input_expr, pert_corr_test))
-        else:
-            with gzip.open(f"{self.data_path}/{self.data_name}_{self.fm}_fm_ctrl.pkl", "rb") as f:
+        else: #TODO might need to add an if statment to load this data without gzip
+            with gzip.open(f"{self.data_path}/{self.data_name}_{self.fm}_fm_ctrl.pkl.gz", "rb") as f:  #TODO fm embed load here need the right names
                 fm_ctrl_data = pkl.load(f)
-            with gzip.open(f"{self.data_path}/{self.data_name}_{self.fm}_fm_pert.pkl", "rb") as f:
+            with gzip.open(f"{self.data_path}/{self.data_name}_{self.fm}_fm_pert.pkl.gz", "rb") as f:
                 fm_pert_data = pkl.load(f)
 
             assert isinstance(fm_ctrl_data, (np.ndarray, anndata.AnnData)), ("fm_ctrl_data should be an array or an "
                                                                              "h5ad file!")
 
-            assert hasattr(fm_ctrl_data, 'obsm'), "fm_ctrl_data should have an attribute 'obsm'!"
+            if isinstance(fm_ctrl_data, anndata.AnnData):
+                assert hasattr(fm_ctrl_data, 'obsm'), "fm_ctrl_data should have an attribute 'obsm'!"
 
             assert isinstance(fm_pert_data, dict), ("fm_pert_data should be a dictionary with perturbed gene as key and"
                                                     "embedding as value!")
+            #TODO check this works as expected for both AnnData and numpy matrix
+            if isinstance(fm_ctrl_data, anndata.AnnData):
+                obsm_keys = fm_ctrl_data.obsm.keys()
+                for key in obsm_keys:
+                    if 'X' in key:
+                        ctrl_embs = fm_ctrl_data.obsm[key]
+                        train_input_emb = ctrl_embs[random_train_mask, :] 
+                        test_input_emb = ctrl_embs[random_test_mask, :] 
+                        break
+                    else:
+                        raise KeyError("fm_ctrl_data should have an attribute 'obsm' with 'X' key!")
+            elif isinstance(fm_ctrl_data, np.ndarray):
+                ctrl_embs = fm_ctrl_data
+                train_input_emb = ctrl_embs[random_train_mask, :] 
+                test_input_emb = ctrl_embs[random_test_mask, :] 
 
-            obsm_keys = fm_ctrl_data.obsm.keys()
-            for key in obsm_keys:
-                if 'X' in key:
-                    ctrl_embs = fm_ctrl_data.obsm[key]
-                    train_input_emb = ctrl_embs[random_train_mask, :]
-                    test_input_emb = ctrl_embs[random_test_mask, :]
-                    break
-                else:
-                    raise KeyError("fm_ctrl_data should have an attribute 'obsm' with 'X' key!")
 
             pert_embs_train = np.zeros((num_train_cells, num_genes))
             for i, pert in enumerate(all_perts_train):
