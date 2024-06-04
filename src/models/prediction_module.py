@@ -40,15 +40,19 @@ class PredictionModule(LightningModule):
         return self.net(x)
 
     def model_step(self, batch: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        x, y = batch
+        if len(batch) == 3:
+            x, y, input_expr = batch
+        else:
+            x, y = batch
+            input_expr = x[:, :x.shape[1] // 2]
 
         if x.dtype != torch.float32:
             x = x.to(torch.float32)
+            input_expr = input_expr.to(torch.float32)
 
         if y.dtype != torch.float32:
             y = y.to(torch.float32)
 
-        input_expr = x[:, :x.shape[1] // 2]
         preds = self.forward(x)
         pert_effect = y - input_expr
         loss = torch.sqrt(self.criterion(preds, pert_effect))
@@ -69,9 +73,9 @@ class PredictionModule(LightningModule):
         self.log("val/mse", self.val_mse, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[list]], batch_idx: int) -> None:
-        if len(batch) == 3:
-            x, y, de_idx = batch
-            loss, preds, targets = self.model_step((x, y))
+        if len(batch) == 4:
+            x, y, de_idx, input_expr = batch
+            loss, preds, targets = self.model_step((x, y, input_expr))
             num_genes = len(de_idx)
             self.log("test/de_genes", num_genes, on_step=False, on_epoch=True, prog_bar=False)
             gene_expr = x[:, :x.shape[1] // 2]
