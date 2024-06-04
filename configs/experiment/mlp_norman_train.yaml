@@ -18,7 +18,7 @@ data:
   fm: "raw_expression"
 
 trainer:
-  max_epochs: 1
+  max_epochs: 60
   accelerator: gpu
   devices: 1
 
