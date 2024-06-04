@@ -1,6 +1,8 @@
 The different files/code that need to be changed to use foundation model embeddings to generate results. Assuming you already have the control and pert embeddings.
 Genrally where code needs to be changed will be commnted with comment starting TODO .... 
 
+These files from this link need to go into scBench/data/splits/perturb/norman https://drive.google.com/drive/folders/1qgdooAIwYTDrATG0K8hD3p8U_L4adTLF
+
 in mlp_norman_train.yaml (in dir configs/expriments) line 18 change fm to your foundation model name e.g. for scgpt have  fm: "scgpt"
 
 in mlp_norman_train.yaml line 11 change total_genes to the embedding dim of your data e.g for an embd dim of 512 we have total_genes: 512 
