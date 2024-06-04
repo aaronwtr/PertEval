@@ -8,19 +8,19 @@ defaults:
   - override /model: mlp
   - override /logger: wandb
 
-total_genes: 2061 # or embedding dim for scFM embeddings
+total_genes: 512 # or embedding dim for scFM embeddings
 
 data:
   data_name: "norman"
   split: 0.00
   replicate: 0
   batch_size: 32
-  fm: "raw_expression"
+  fm: "scgpt"
 
 trainer:
   max_epochs: 30
-  accelerator: gpu
-  devices: 2
+  accelerator: cpu
+  devices: 1
 
 callbacks:
   learning_rate_monitor:

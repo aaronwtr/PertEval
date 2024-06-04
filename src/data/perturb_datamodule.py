@@ -106,8 +106,6 @@ class PertDataModule(LightningDataModule):
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
-        print(data_dir)
-        print(self.data_name)
         self.data_path = os.path.join(data_dir, self.data_name)
 
         if not os.path.exists(self.data_path):
