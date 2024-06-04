@@ -12,13 +12,13 @@ total_genes: 2061
 
 data:
   data_name: "norman"
-  eval_type: "SET_de"
-  split: 0.00
+  eval_type: "ZNF318_de"
+  split: 0.80
   replicate: 0
   fm: "raw_expression"
 
 
-ckpt_path: "${paths.log_dir}train/runs/2024-06-01_15-18-38_train_mlp_0.00_0/checkpoints/best_model_at_epoch_020.ckpt"
+ckpt_path: "${paths.log_dir}train/runs/mlp_norman_0.80/best_model_at_epoch_059.ckpt"
 
 logger:
   wandb:
