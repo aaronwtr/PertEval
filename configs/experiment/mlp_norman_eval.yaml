@@ -9,18 +9,24 @@ defaults:
   - override /logger: wandb
 
 total_genes: 2061
+emb_dim: 512
 
 data:
   data_name: "norman"
-  eval_type: "SET_de"
+  eval_type: "SLC4A1_de"
   split: 0.00
   replicate: 0
-  fm: "raw_expression"
+  fm: "scgpt"
 
+model:
+  net:
+    in_dim: ${eval:'${emb_dim}*2'}
+    hidden_dim: 512
 
-ckpt_path: "${paths.log_dir}train/runs/2024-06-01_15-18-38_train_mlp_0.00_0/checkpoints/best_model_at_epoch_020.ckpt"
+ckpt_path: "${paths.log_dir}train/runs/2024-06-04-final/7/best_model_at_epoch_057.ckpt"
 
 logger:
   wandb:
-    tags: ["eval", "${data.eval_type}","mlp", "norman", "split_${data.split}", "replicate_${data.replicate}"]
+    tags: ["eval", "${data.eval_type}","mlp", "norman", "${data.fm}" "split_${data.split}", "replicate_${data.replicate}"]
     group: "test_mlp_norman_${data.split}"
+    project: "perturbench-scgpt"
