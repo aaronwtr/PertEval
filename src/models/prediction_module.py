@@ -41,14 +41,25 @@ class PredictionModule(LightningModule):
 
     def model_step(self, batch: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if len(batch) == 3:
-            x, y, input_expr = batch
+            x, y, arg = batch
+            if isinstance(arg, dict):
+                pass
+            else:
+                input_expr = arg
+                try:
+                    if input_expr.dtype != torch.float32:
+                        input_expr = input_expr.to(torch.float32)
+                except AttributeError:
+                    if isinstance(input_expr, list):
+                        input_expr = torch.tensor(input_expr, dtype=torch.float32)
+                    else:
+                        raise ValueError("Input expression must be a tensor or a list")
         else:
             x, y = batch
             input_expr = x[:, :x.shape[1] // 2]
 
         if x.dtype != torch.float32:
             x = x.to(torch.float32)
-            input_expr = input_expr.to(torch.float32)
 
         if y.dtype != torch.float32:
             y = y.to(torch.float32)
@@ -73,8 +84,13 @@ class PredictionModule(LightningModule):
         self.log("val/mse", self.val_mse, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[list]], batch_idx: int) -> None:
-        if len(batch) == 4:
-            x, y, de_idx, input_expr = batch
+        if len(batch) >= 3:
+            x, y, args = batch
+            if len(args) == 2:
+                de_idx, input_expr = args
+            else:
+                de_idx = args['de_idx']
+                input_expr = x[:, :x.shape[1] // 2]
             loss, preds, targets = self.model_step((x, y, input_expr))
             num_genes = len(de_idx)
             self.log("test/de_genes", num_genes, on_step=False, on_epoch=True, prog_bar=False)

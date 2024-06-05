@@ -594,7 +594,7 @@ class PerturbData(Dataset):
                 perturbed = self.eval_type.split('_')[0]
                 with open(f"{self.data_path}/de_test/split_{sp}/{perturbed}_de_idx.pkl", "rb") as f:
                     de_idx = pkl.load(f)
-                return self.X_test[index], self.test_target[index], de_idx
+                return self.X_test[index], self.test_target[index], {"de_idx": de_idx}
         else:
             if self.stage == "train":
                 return self.X_train[index], self.train_target[index], self.ctrl_expr[index]
@@ -608,7 +608,7 @@ class PerturbData(Dataset):
                 perturbed = self.eval_type.split('_')[0]
                 with open(f"{self.data_path}/de_test/split_{sp}/{perturbed}_de_idx.pkl", "rb") as f:
                     de_idx = pkl.load(f)
-                return self.X_test[index], self.test_target[index], de_idx, self.ctrl_expr[index]
+                return self.X_test[index], self.test_target[index], {"de_idx": de_idx}, self.ctrl_expr[index]
 
 
     def __len__(self):
