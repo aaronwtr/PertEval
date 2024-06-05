@@ -20,7 +20,7 @@ data:
 trainer:
   max_epochs: 30
   accelerator: gpu
-  devices: 2
+  devices: 1
 
 callbacks:
   learning_rate_monitor:
