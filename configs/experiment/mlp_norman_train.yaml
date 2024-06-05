@@ -38,7 +38,11 @@ model:
     _target_: torch.optim.Adam
     _partial_: true
     lr: 3e-4
-    weight_decay: 0.0
+    weight_decay: 1e-9
+
+  net:
+    _target_: src.models.components.predictors.MLP
+    hidden_dim: 512
 
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau

@@ -323,9 +323,9 @@ class PerturbData(Dataset):
                         test_input_emb = ctrl_embs[random_test_mask, :] 
                         break
                     else:
-                        raise KeyError("fm_ctrl_data should have an attribute 'obsm' with 'X' key!")
+                        raise KeyError("basal_ctrl_adata should have an attribute 'obsm' with 'X' key!")
                 else:
-                    raise KeyError("fm_ctrl_data should be AnnData with 'obsm' attribute with 'X' key!")
+                    raise KeyError("basal_ctrl_adata should be AnnData with 'obsm' attribute with 'X' key!")
 
             pert_embs_train = np.zeros((num_train_cells, num_genes))
             for i, pert in enumerate(all_perts_train):
