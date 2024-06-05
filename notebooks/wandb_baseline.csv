@@ -1,4 +1,5 @@
 "Name","Created","Group","Tags","test/mse","test_baseline/mse","test_de/mse","train/mse","val/mse"
+"stoic-haze-56","2024-06-05T14:17:35.000Z","test_mlp_norman_0.7","IKZF3_de, eval, mlp, norman, replicate_1, split_0.7","","0.190044105052948","0.18619084358215332","",""
 "youthful-hill-37","2024-06-05T02:28:56.000Z","test_mlp_norman_0.0","SLC4A1_de, eval, mlp, norman, replicate_0, split_0.0","","0.3834665417671203","0.3701277673244476","",""
 "lemon-vortex-33","2024-06-05T02:13:27.000Z","test_mlp_norman_0.0","SET_de, eval, mlp, norman, replicate_0, split_0.0","","0.30042266845703125","0.2966964542865753","",""
 "prime-disco-230","2024-06-04T01:09:47.000Z","mlp_norman_0.8","mlp, norman, replicate_1, split_0.8","0.07154403626918793","","","0.060079775750637054","0.05769810825586319"
