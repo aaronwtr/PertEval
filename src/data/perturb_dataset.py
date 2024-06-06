@@ -145,7 +145,7 @@ class PerturbData(Dataset):
         if self.fm != 'raw_expression':
             # load the embeddings
             with gzip.open(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_ctrl.pkl.gz",
-                           "rb") as f:  # TODO fm embed load here need the right names
+                           "rb") as f:
                 fm_ctrl_data = pkl.load(f)
             with gzip.open(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_pert.pkl.gz", "rb") as f:
                 fm_pert_data = pkl.load(f)
@@ -609,7 +609,6 @@ class PerturbData(Dataset):
                 with open(f"{self.data_path}/de_test/split_{sp}/{perturbed}_de_idx.pkl", "rb") as f:
                     de_idx = pkl.load(f)
                 return self.X_test[index], self.test_target[index], {"de_idx": de_idx}, self.ctrl_expr[index]
-
 
     def __len__(self):
         if self.stage == "train":
