@@ -4,7 +4,7 @@ early_stopping:
   _target_: lightning.pytorch.callbacks.EarlyStopping
   monitor: val/mse # quantity to be monitored, must be specified !!!
   min_delta: 0.0001 # minimum change in the monitored quantity to qualify as an improvement
-  patience: 50 # number of checks with no improvement after which training will be stopped
+  patience: 20 # number of checks with no improvement after which training will be stopped
   verbose: False # verbosity mode
   mode: "min" # "max" means higher metric value is better, can be also "min"
   strict: True # whether to crash the training if monitor is not found in the validation metrics

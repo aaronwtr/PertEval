@@ -8,7 +8,7 @@ defaults:
   - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: cpu
   - paths: default
-  - extras: null
+  - extras: default
   - hydra: default
 
   # experiment configs allow for version control of specific hyperparameters
