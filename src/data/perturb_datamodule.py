@@ -127,7 +127,6 @@ class PertDataModule(LightningDataModule):
         self.prepare_data()
         self.setup()
 
-    #TODO maybe remove if taking too long
     def prepare_data(self) -> None:
         """Put all downloading and preprocessing logic that only needs to happen on one device here. Lightning ensures
         that `self.prepare_data()` is called only within a single process on CPU, so you can safely add your logic
