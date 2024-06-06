@@ -83,21 +83,23 @@ class PredictionModule(LightningModule):
         self.val_mse(preds, targets)
         self.log("val/mse", self.val_mse, on_step=False, on_epoch=True, prog_bar=True)
 
-    def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[list]], batch_idx: int) -> None:
-        if len(batch) >= 3:
-            x, y, args = batch
+    def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[list], Optional[torch.Tensor]],
+                  batch_idx: int) -> None:
+        if len(batch) > 3:
+            x, y, *args = batch
             if len(args) == 2:
                 de_idx, input_expr = args
+                de_idx = de_idx['de_idx']
             else:
-                de_idx = args['de_idx']
+                de_idx = args
+                de_idx = de_idx['de_idx']
                 input_expr = x[:, :x.shape[1] // 2]
             loss, preds, targets = self.model_step((x, y, input_expr))
             num_genes = len(de_idx)
             self.log("test/de_genes", num_genes, on_step=False, on_epoch=True, prog_bar=False)
-            gene_expr = x[:, :x.shape[1] // 2]
-            mean_expr = torch.mean(gene_expr, dim=0)
+            mean_expr = torch.mean(input_expr, dim=0)
             mean_expr = mean_expr.repeat(targets.shape[0], 1)
-            mean_eff = mean_expr - gene_expr
+            mean_eff = mean_expr - input_expr
             de_idx = torch.tensor([int(idx[0]) for idx in de_idx])
             de_idx = torch.tensor(de_idx)
             preds = preds[:, de_idx]
