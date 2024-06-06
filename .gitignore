@@ -147,6 +147,7 @@ dmypy.json
 # Lightning-Hydra-Template
 configs/local/default.yaml
 /data/
+!data/splits/perturb/norman/norman_SPECTRA_splits
 /logs/
 .env
 
