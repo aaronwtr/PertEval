@@ -34,3 +34,12 @@ class MLP(torch.nn.Module):
             x = self.layer_activation(layer(x))
         x = self.layers[-1](x)
         return x
+
+
+class MeanExpression(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        mean_expr = torch.mean(x[:, :x.shape[1] // 2], dim=0)
+        return mean_expr - x[:, :x.shape[1] // 2]
