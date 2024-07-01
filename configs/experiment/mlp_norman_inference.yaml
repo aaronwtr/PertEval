@@ -1,0 +1,26 @@
+# @package _global_
+
+# run with `python src/eval.py experiment=mlp_norman_inference`
+
+model_type: "mean" # pick from mlp or lr
+
+defaults:
+  - override /model: mean
+  - override /logger: wandb
+
+total_genes: 2061
+emb_dim: 1280
+
+data:
+  data_name: "norman"
+  split: 0.7
+  replicate: 2
+  fm: "raw_expression"
+
+ckpt_path: null
+
+logger:
+  wandb:
+    tags: ["eval","mean", "norman", "${data.fm}", "split_${data.split}", "replicate_${data.replicate}"]
+    group: "test_mean_norman_${data.split}"
+    project: "perturbench-local"

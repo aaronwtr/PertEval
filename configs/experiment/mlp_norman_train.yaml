@@ -2,25 +2,25 @@
 
 # run with `python src/train.py experiment=mlp_norman_train`
 
-model_type: "mlp" # pick from mlp or lr
+model_type: "mlp" # pick from mean, mlp or lr
 
 defaults:
   - override /model: mlp
   - override /logger: wandb
 
 total_genes: 2061 # or embedding dim for scFM embeddings
-emb_dim: 512
+emb_dim: 3072
 
 data:
   data_name: "norman"
   split: 0.00
   replicate: 0
   batch_size: 64
-  fm: "scgpt"
+  fm: "scfoundation"
 
 trainer:
   max_epochs: 100
-  accelerator: gpu
+  accelerator: cpu
   devices: 1
 
 callbacks:
@@ -30,7 +30,7 @@ callbacks:
 
 logger:
   wandb:
-    tags: ["${model_type}", "${data.data_name}", "split_${data.split}", "replicate_${data.replicate}", "hpo"]
+    tags: ["${model_type}", "${data.data_name}", "${data.fm}$","split_${data.split}", "replicate_${data.replicate}", "hpo"]
     group: "${model_type}_${data.data_name}_${data.split}"
     project: "perturbench-local"
 

@@ -1,6 +1,6 @@
 defaults:
   - model_checkpoint
-  - early_stopping
+  # - early_stopping
   - model_summary
   # - rich_progress_bar   # only enable if running in terminal
   - _self_
@@ -8,7 +8,7 @@ defaults:
 model_checkpoint:
   dirpath: ${paths.output_dir}/checkpoints
   filename: "best_model_at_epoch_{epoch:03d}"
-  monitor: "val/mse"
+  monitor: "val/rmse"
   mode: "min"
   save_last: True
   auto_insert_metric_name: False
