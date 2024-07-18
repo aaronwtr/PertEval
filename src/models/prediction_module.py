@@ -1,18 +1,15 @@
-# src/models/components/simple_module.py
-
-from typing import Any, Literal, Optional, Dict, Tuple
+from typing import Any, Literal, Optional, Dict, Tuple, List
 import torch
 import torch.nn as nn
 from lightning import LightningModule
 from torchmetrics import MeanSquaredError, MeanMetric
-from src.models.components.predictors import LinearRegressionModel, MLP
 
 
 class PredictionModule(LightningModule):
     def __init__(
             self,
             net: torch.nn.Module,
-            model_type: Literal["linear_regression", "mlp"] = "mlp",
+            model_type: Literal["mean", "linear_regression", "mlp"] = "mlp",
             optimizer: torch.optim.Optimizer = torch.optim.Adam,
             criterion: Optional[torch.nn.Module] = nn.MSELoss(),
             compile: Optional[bool] = False,
@@ -23,7 +20,8 @@ class PredictionModule(LightningModule):
         self.save_hyperparameters(logger=False)
 
         self.net = net
-        self.model_type = model_type  # saving placeholder in case different forward logic is required for different models
+        self.model_type = model_type    # saving placeholder in case different forward logic is required for different
+                                        # models
         self.criterion = criterion
         self.compile = compile
 
@@ -97,20 +95,14 @@ class PredictionModule(LightningModule):
             loss, preds, targets = self.model_step((x, y, input_expr))
             num_genes = len(de_idx)
             self.log("test/de_genes", num_genes, on_step=False, on_epoch=True, prog_bar=False)
-            mean_expr = torch.mean(input_expr, dim=0)
-            mean_expr = mean_expr.repeat(targets.shape[0], 1)
-            mean_eff = mean_expr - input_expr
             de_idx = torch.tensor([int(idx[0]) for idx in de_idx])
             de_idx = torch.tensor(de_idx)
             preds = preds[:, de_idx]
             targets = targets[:, de_idx]
-            self.baseline_mse(mean_eff[:, de_idx], targets)
-            self.log("test_baseline/mse", self.baseline_mse, on_step=False, on_epoch=True, prog_bar=False)
             self.test_mse(preds, targets)
             self.log("test_de/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
         else:
             loss, preds, targets = self.model_step(batch)
-
             self.test_mse(preds, targets)
             self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
 

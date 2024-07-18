@@ -114,7 +114,6 @@ class PerturbData(Dataset):
 
         pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
         all_perts = list(set(pert_adata.obs['condition'].to_list()))
-        unique_perts = list(set(pert_list))
 
         num_cells = ctrl_adata.shape[0]
         num_perts = len(all_perts)
@@ -149,6 +148,9 @@ class PerturbData(Dataset):
                 fm_ctrl_data = pkl.load(f)
             with gzip.open(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_pert.pkl.gz", "rb") as f:
                 fm_pert_data = pkl.load(f)
+
+            fm_pert_data = {pert: emb for pert, emb in fm_pert_data.items() if emb.shape[0] > 0}
+            unique_perts = list(fm_pert_data.keys())
 
             assert isinstance(fm_ctrl_data, (np.ndarray, anndata.AnnData)), ("fm_ctrl_data should be an array or an "
                                                                              "h5ad file!")
@@ -186,6 +188,7 @@ class PerturbData(Dataset):
                 sg_hvg_adata = sg_pert_adata[:, combined_genes]
 
                 pert_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] != 'ctrl', :]
+                pert_adata = pert_adata[pert_adata.obs['condition'].isin(unique_perts), :]
 
                 pert_adata.write(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad", compression='gzip')
 
@@ -224,8 +227,9 @@ class PerturbData(Dataset):
                     basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X_empty, obs=pert_adata.obs)
                     basal_ctrl_adata.obsm['X'] = basal_ctrl_X
 
-                    basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad",
-                                        compression='gzip')
+                    # basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad",
+                    #                    compression='gzip')
+                    basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
             with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
                 pkl.dump(all_perts, f)
         else:
