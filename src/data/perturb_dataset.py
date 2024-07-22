@@ -2,7 +2,6 @@ import torch
 import os
 import anndata
 import gzip
-import time
 
 import numpy as np
 import scanpy as sc
@@ -17,10 +16,12 @@ from scipy.sparse import csr_matrix
 from scipy.stats import pearsonr
 
 from src.utils.spectra import get_splits
+from src.data.perturb_dataprocessor import PertDataProcessor
 
 
 class PerturbData(Dataset):
     def __init__(self, adata, data_path, spectral_parameter, spectra_params, fm, stage, **kwargs):
+        self.data_processor = None
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
         self.spectral_parameter = spectral_parameter
@@ -109,9 +110,6 @@ class PerturbData(Dataset):
 
         ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
 
-        if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
-            ctrl_adata.write(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad", compression='gzip')
-
         pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
         all_perts = list(set(pert_adata.obs['condition'].to_list()))
 
@@ -141,118 +139,101 @@ class PerturbData(Dataset):
 
         gene_to_ensg = dict(zip(sg_pert_adata.var['gene_symbols'], sg_pert_adata.var_names))
 
-        if self.fm != 'raw_expression':
-            # load the embeddings
-            with gzip.open(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_ctrl.pkl.gz",
-                           "rb") as f:
-                fm_ctrl_data = pkl.load(f)
-            with gzip.open(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_pert.pkl.gz", "rb") as f:
-                fm_pert_data = pkl.load(f)
+        self.data_processor = PertDataProcessor(sg_pert_adata, self.data_path, self.data_name, pert_list, self.fm)
 
-            fm_pert_data = {pert: emb for pert, emb in fm_pert_data.items() if emb.shape[0] > 0}
-            unique_perts = list(fm_pert_data.keys())
+        # if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
+        #     pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
+        #
+        #     # save control_data_raw for inference with scFMs and pert_data for contextual alignment experiment
+        #     if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
+        #         ctrl_adata.write(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad", compression='gzip')
+        #     if not os.path.exists(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad"):
+        #         pert_adata.write(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad", compression='gzip')
+        #
+        #     # if os.path.exists(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
+        #     #     basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+        #     #     pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
+        #
+        #     if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
+        #         sc.pp.normalize_total(sg_pert_adata)
+        #         sc.pp.log1p(sg_pert_adata)
+        #         sc.pp.highly_variable_genes(sg_pert_adata, n_top_genes=2000)
+        #         highly_variable_genes = sg_pert_adata.var_names[sg_pert_adata.var['highly_variable']]
+        #         unique_perts_ensg = [gene_to_ensg[pert] for pert in unique_perts]
+        #         missing_perts = list(set(unique_perts_ensg) - set(highly_variable_genes))
+        #         combined_genes = list(set(highly_variable_genes) | set(missing_perts))
+        #         sg_hvg_adata = sg_pert_adata[:, combined_genes]
+        #
+        #         pert_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] != 'ctrl', :]
+        #         pert_adata = pert_adata[pert_adata.obs['condition'].isin(unique_perts), :]
+        #
+        #         pert_adata.write(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad", compression='gzip')
+        #
+        #         ctrl_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] == 'ctrl', :]
+        #         ctrl_adata.write(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad", compression='gzip')
+        #
+        #         ctrl_X = ctrl_adata.X.toarray()
+        #         subset_size = 500
+        #
+        #         basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
+        #         for cell in tqdm(range(pert_adata.shape[0])):
+        #             random_cells = np.random.choice(ctrl_X.shape[0], subset_size)
+        #             subset_X = ctrl_X[random_cells, :]
+        #             basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
+        #         basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
+        #
+        #         # noinspection PyTypeChecker
+        #         basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad",
+        #                            compression='gzip')
+        #         if self.fm != 'raw_expression':
+        #             emb_perts = fm_pert_data.keys()
+        #             pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
+        #
+        #             ctrl_expr = basal_ctrl_adata[basal_ctrl_adata.obs['condition'].isin(emb_perts), :]
+        #             ctrl_expr = ctrl_expr.X.toarray()
+        #             with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "wb") as f:
+        #                 pkl.dump(ctrl_expr, f)
+        #
+        #             basal_ctrl_X = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
+        #             for cell in tqdm(range(pert_adata.shape[0])):
+        #                 random_cells = np.random.choice(fm_ctrl_X.shape[0], subset_size)
+        #                 subset_X = fm_ctrl_X[random_cells, :]
+        #                 basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
+        #
+        #             basal_ctrl_X_empty = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
+        #             basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X_empty, obs=pert_adata.obs)
+        #             basal_ctrl_adata.obsm['X'] = basal_ctrl_X
+        #
+        #             # basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad",
+        #             #                    compression='gzip')
+        #             basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+        #     with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
+        #         pkl.dump(all_perts, f)
+        # else:
+        #     if self.fm == 'raw_expression':
+        #         basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+        #         pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
+        #     else:
+        #         with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "rb") as f:
+        #             ctrl_expr = pkl.load(f)
+        #         basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+        #         emb_perts = fm_pert_data.keys()
+        #         pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
+        #         pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
 
-            assert isinstance(fm_ctrl_data, (np.ndarray, anndata.AnnData)), ("fm_ctrl_data should be an array or an "
-                                                                             "h5ad file!")
-
-            if isinstance(fm_ctrl_data, anndata.AnnData):
-                assert hasattr(fm_ctrl_data, 'obsm'), "fm_ctrl_data should have an attribute 'obsm'!"
-                fm_ctrl_X = fm_ctrl_data.obsm['X']
-            else:
-                fm_ctrl_X = fm_ctrl_data
-
-            assert isinstance(fm_pert_data, dict), ("fm_pert_data should be a dictionary with perturbed gene as key and"
-                                                    "embedding as value!")
-
-        if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
-            pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
-
-            # save control_data_raw for inference with scFMs and pert_data for contextual alignment experiment
-            if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
-                ctrl_adata.write(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad", compression='gzip')
-            if not os.path.exists(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad"):
-                pert_adata.write(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad", compression='gzip')
-
-            if os.path.exists(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
-                basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
-                pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
-                
-            if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
-                sc.pp.normalize_total(sg_pert_adata)
-                sc.pp.log1p(sg_pert_adata)
-                sc.pp.highly_variable_genes(sg_pert_adata, n_top_genes=2000)
-                highly_variable_genes = sg_pert_adata.var_names[sg_pert_adata.var['highly_variable']]
-                unique_perts_ensg = [gene_to_ensg[pert] for pert in unique_perts]
-                missing_perts = list(set(unique_perts_ensg) - set(highly_variable_genes))
-                combined_genes = list(set(highly_variable_genes) | set(missing_perts))
-                sg_hvg_adata = sg_pert_adata[:, combined_genes]
-
-                pert_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] != 'ctrl', :]
-                pert_adata = pert_adata[pert_adata.obs['condition'].isin(unique_perts), :]
-
-                pert_adata.write(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad", compression='gzip')
-
-                ctrl_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] == 'ctrl', :]
-                ctrl_adata.write(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad", compression='gzip')
-
-                ctrl_X = ctrl_adata.X.toarray()
-                subset_size = 500
-
-                basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
-                for cell in tqdm(range(pert_adata.shape[0])):
-                    random_cells = np.random.choice(ctrl_X.shape[0], subset_size)
-                    subset_X = ctrl_X[random_cells, :]
-                    basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
-                basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
-
-                # noinspection PyTypeChecker
-                basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad",
-                                   compression='gzip')
-                if self.fm != 'raw_expression':
-                    emb_perts = fm_pert_data.keys()
-                    pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
-
-                    ctrl_expr = basal_ctrl_adata[basal_ctrl_adata.obs['condition'].isin(emb_perts), :]
-                    ctrl_expr = ctrl_expr.X.toarray()
-                    with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "wb") as f:
-                        pkl.dump(ctrl_expr, f)
-
-                    basal_ctrl_X = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
-                    for cell in tqdm(range(pert_adata.shape[0])):
-                        random_cells = np.random.choice(fm_ctrl_X.shape[0], subset_size)
-                        subset_X = fm_ctrl_X[random_cells, :]
-                        basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
-
-                    basal_ctrl_X_empty = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
-                    basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X_empty, obs=pert_adata.obs)
-                    basal_ctrl_adata.obsm['X'] = basal_ctrl_X
-
-                    # basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad",
-                    #                    compression='gzip')
-                    basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
-            with open(f"{self.data_path}/all_perts.pkl", "wb") as f:
-                pkl.dump(all_perts, f)
-        else:
-            if self.fm == 'raw_expression':
-                basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
-                pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
-            else:
-                with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "rb") as f:
-                    ctrl_expr = pkl.load(f)
-                basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
-                emb_perts = fm_pert_data.keys()
-                pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
-                pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
-
-        # these just need to be the same between datasets, irrespective of order
         if self.fm == 'raw_expression':
+            basal_ctrl_adata, pert_adata = self.data_processor.process_data()
             control_genes = basal_ctrl_adata.var.index.to_list()
             pert_genes = pert_adata.var.index.to_list()
 
             assert control_genes == pert_genes, ("Watch out! Genes in control and perturbation datasets are not the"
                                                  " same, or are not indexed the same.")
+        else:
+            ctrl_expr, basal_ctrl_adata, pert_adata = self.data_processor.process_data()
 
-        # these need to be paired between datasets, and in the same order
+        unique_perts = self.data_processor.unique_perts
+        fm_pert_data = self.data_processor.fm_pert_data
+
         pert_cell_conditions = pert_adata.obs['condition'].to_list()
         ctrl_cell_conditions = basal_ctrl_adata.obs['condition'].to_list()
 
@@ -263,9 +244,9 @@ class PerturbData(Dataset):
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
 
-        if not os.path.exists(f"{self.data_path}/test_perts_split_{self.spectral_parameter}.pkl"):
-            with open(f"{self.data_path}/test_perts_{self.spectral_parameter}.pkl", "wb") as f:
-                pkl.dump(test_perts, f)
+        # if not os.path.exists(f"{self.data_path}/test_perts_split_{self.spectral_parameter}.pkl"):
+        #     with open(f"{self.data_path}/test_perts_{self.spectral_parameter}.pkl", "wb") as f:
+        #         pkl.dump(test_perts, f)
 
         train_target = pert_adata[pert_adata.obs['condition'].isin(train_perts), :]
         test_target = pert_adata[pert_adata.obs['condition'].isin(test_perts), :]
@@ -323,8 +304,8 @@ class PerturbData(Dataset):
                 for key in obsm_keys:
                     if 'X' in key:
                         ctrl_embs = basal_ctrl_adata.obsm[key]
-                        train_input_emb = ctrl_embs[random_train_mask, :] 
-                        test_input_emb = ctrl_embs[random_test_mask, :] 
+                        train_input_emb = ctrl_embs[random_train_mask, :]
+                        test_input_emb = ctrl_embs[random_test_mask, :]
                         break
                     else:
                         raise KeyError("basal_ctrl_adata should have an attribute 'obsm' with 'X' key!")
@@ -333,7 +314,7 @@ class PerturbData(Dataset):
 
             pert_embs_train = np.zeros((num_train_cells, num_genes))
             for i, pert in enumerate(all_perts_train):
-                pert_embs_train[i, :] = fm_pert_data[pert].mean(axis=0)
+                 pert_embs_train[i, :] = fm_pert_data[pert].mean(axis=0)
 
             pert_embs_test = np.zeros((num_test_cells, num_genes))
             for i, pert in enumerate(all_perts_test):
