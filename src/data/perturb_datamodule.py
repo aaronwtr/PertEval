@@ -109,6 +109,8 @@ class PertDataModule(LightningDataModule):
         self.save_hyperparameters(logger=False)
         self.data_path = os.path.join(data_dir, self.data_name)
 
+        # todo: debug MSE nans
+
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
 
