@@ -149,22 +149,28 @@ configs/local/default.yaml
 /data/
 !data/splits/perturb/norman/norman_SPECTRA_splits
 /logs/
+multirun/*
 .env
 
 # Aim logging
 .aim
 
+# Cache
 cache/
 
+# Cluster
 configs/paths/cluster.yaml
+src/data/cluster_temp.py
 
+# Notebooks
 notebooks/scratch
 notebooks/wandb
 notebooks/data
 notebooks/norman
 notebooks/norman_SPECTRA_splits
 notebooks/norman_spectral_property_graphs
-
-src/data/cluster_temp.py
-
-multirun/*
+notebooks/plots/paper_figs
+notebooks/plots/*.csv
+notebooks/plots/*.pkl
+notebooks/plots/*.npy
+notebooks/preprocessing/*.csv
