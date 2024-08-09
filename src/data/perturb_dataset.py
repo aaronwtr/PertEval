@@ -615,11 +615,11 @@ class PerturbData(Dataset):
             elif self.stage == "val":
                 return self.X_val[index], self.val_target[index], self.ctrl_expr[index]
             elif self.stage == "test" and self.deg_dict is None:
-                return self.X_test[index], self.test_target[index]
+                return self.X_test[index], self.test_target[index], self.ctrl_expr[index]
             else:
                 all_genes = self.basal_ctrl_adata.var.index.to_list()
                 de_idx = [all_genes.index(gene) for gene in self.deg_dict[self.perturbation] if gene in all_genes]
-                return self.X_test[index], self.test_target[index], {"de_idx": de_idx}
+                return self.X_test[index], self.test_target[index], {"de_idx": de_idx}, self.ctrl_expr[index]
 
     def __len__(self):
         if self.stage == "train":

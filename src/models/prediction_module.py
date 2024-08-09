@@ -37,8 +37,15 @@ class PredictionModule(LightningModule):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
-    def model_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[dict]]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        x, y, input_expr = batch if len(batch) == 3 else (*batch, None)
+    # noinspection PyTupleAssignmentBalance
+    def model_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[dict], Optional[torch.Tensor]]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        if len(batch) == 4:
+            x, y, _, input_expr = batch
+        elif len(batch) == 3:
+            x, y, input_expr = batch
+        else:
+            x, y = batch
+            input_expr = None
 
         if x.dtype != torch.float32:
             x = x.to(torch.float32)
@@ -70,11 +77,22 @@ class PredictionModule(LightningModule):
         self.val_mse(preds, targets)
         self.log("val/mse", self.val_mse, on_step=False, on_epoch=True, prog_bar=True)
 
+    # noinspection PyTupleAssignmentBalance
     def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[list], Optional[torch.Tensor]],
                   batch_idx: int) -> None:
-        x, y, de_dict = batch if len(batch) == 3 else (*batch, None)
-        input_expr = x[:, :x.shape[1] // 2]
-        if de_dict:
+        de_dict = None
+        if len(batch) == 4:
+            x, y, de_dict, input_expr = batch
+        elif len(batch) == 3:
+            x, y, input_expr = batch
+        else:
+            x, y = batch
+            input_expr = x[:, :x.shape[1] // 2]
+        if not de_dict:
+            loss, preds, targets = self.model_step((x, y, input_expr))
+            self.test_mse(preds, targets)
+            self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
+        else:
             de_idx = de_dict['de_idx']
             loss, preds, targets = self.model_step((x, y, input_expr))
             num_genes = len(de_idx)
@@ -92,12 +110,6 @@ class PredictionModule(LightningModule):
             test_mse_value = self.test_mse.compute()
             adjusted_mse = test_mse_value - baseline_mse_value
             self.log("test/adjusted_mse", adjusted_mse, on_step=False, on_epoch=True, prog_bar=True)
-            # self.log("de_test/baseline_mse", self.baseline_mse, on_step=False, on_epoch=True, prog_bar=False)
-            # self.log("de_test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
-        else:
-            loss, preds, targets = self.model_step((x, y, input_expr))
-            self.test_mse(preds, targets)
-            self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
 
     def setup(self, stage: str) -> None:
         """Lightning hook that is called at the beginning of fit (train + validate), validate,
