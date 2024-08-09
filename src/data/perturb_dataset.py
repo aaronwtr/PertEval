@@ -21,20 +21,25 @@ from src.data.perturb_dataprocessor import PertDataProcessor
 
 class PerturbData(Dataset):
     def __init__(self, adata, data_path, spectral_parameter, spectra_params, fm, stage, **kwargs):
-        self.data_processor = None
         self.data_name = data_path.split('/')[-1]
         self.data_path = data_path
         self.spectral_parameter = spectral_parameter
         self.spectra_params = spectra_params
         self.stage = stage
         self.fm = fm
-        self.eval_type = kwargs.get("eval_type", None)
+        self.data_processor = None
+        self.deg_dict = None
+        self.basal_ctrl_adata = None
+
+        if kwargs:
+            if 'deg_dict' in kwargs and 'perturbation' in kwargs:
+                self.deg_dict = kwargs['deg_dict']
+                self.perturbation = kwargs['perturbation']
+            else:
+                raise HydraException("kwargs can only contain 'perturbation' and 'deg_dict' keys!")
 
         assert self.fm in ["raw_expression", "scgpt", "geneformer", "scfoundation", "scbert", "uce"], \
             "fm must be set to 'raw_expression', 'scgpt', 'geneformer', 'scfoundation', 'scbert', or 'uce'!"
-
-        if self.eval_type is not None and "_de" not in self.eval_type:
-            raise ValueError("eval_type must be None or '{pert}_de'.")
 
         feature_path = f"{self.data_path}/input_features/{self.fm}"
 
@@ -44,6 +49,7 @@ class PerturbData(Dataset):
         if self.data_name == "norman":
             if not os.path.exists(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz"):
                 pp_data = self.preprocess_and_featurise_norman(adata)
+                self.basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
                 if self.fm == 'raw_expression':
                     (self.X_train, self.train_target, self.X_val, self.val_target, self.X_test,
                      self.test_target) = pp_data
@@ -51,6 +57,7 @@ class PerturbData(Dataset):
                     (self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target,
                      self.ctrl_expr) = pp_data
             else:
+                self.basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
                 with gzip.open(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_train, self.train_target = pkl.load(f)
                 with gzip.open(f"{feature_path}/val_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
@@ -166,20 +173,31 @@ class PerturbData(Dataset):
             assert isinstance(fm_pert_data, dict), ("fm_pert_data should be a dictionary with perturbed gene as key and"
                                                     "embedding as value!")
 
-        if not os.path.exists(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
+        basal_ctrl_path = f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad"
+
+        # The reason this needs to be regenerated for each model, is that the embedding dimensions are different
+        # for each model
+        embed_basal_ctrl_path = f"{self.data_path}/embed_basal_ctrl_{self.data_name}_{self.fm}_pp_filtered.h5ad"
+
+        basal_ctrl_not_exists = not os.path.exists(basal_ctrl_path)
+        embed_basal_ctrl_condition = (os.path.exists(basal_ctrl_path) and not os.path.exists(embed_basal_ctrl_path)
+                                      and self.fm != 'raw_expression')
+
+        if basal_ctrl_not_exists or embed_basal_ctrl_condition:
+            # Condensed the logic, but it is saying that if the basal_ctrl_adata does not exist, or if it does exists
+            # but the embed_basal_ctrl_adata does not exist, then we need to regenerate the basal_ctrl_adata for the
+            # scFM model
+
             pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
 
-            # save control_data_raw for inference with scFMs and pert_data for contextual alignment experiment
+            # Save control_data_raw for inference with scFMs and pert_data for contextual alignment experiment
             if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
                 ctrl_adata.write(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad", compression='gzip')
             if not os.path.exists(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad"):
                 pert_adata.write(f"{self.data_path}/pert_{self.data_name}_raw_counts.h5ad", compression='gzip')
 
-            # if os.path.exists(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad"):
-            #     basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/empty_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
-            #     pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
-
             if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
+                # This is the same between all models
                 sc.pp.normalize_total(sg_pert_adata)
                 sc.pp.log1p(sg_pert_adata)
                 sc.pp.highly_variable_genes(sg_pert_adata, n_top_genes=2000)
@@ -200,8 +218,9 @@ class PerturbData(Dataset):
                 ctrl_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad")
                 pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
 
+            subset_size = 500
+            if basal_ctrl_not_exists:
                 ctrl_X = ctrl_adata.X.toarray()
-                subset_size = 500
 
                 basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
                 for cell in tqdm(range(pert_adata.shape[0])):
@@ -211,30 +230,30 @@ class PerturbData(Dataset):
                 basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X, obs=pert_adata.obs, var=ctrl_adata.var)
 
                 # noinspection PyTypeChecker
-                basal_ctrl_adata.write(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad",
-                                       compression='gzip')
-                if self.fm != 'raw_expression':
-                    emb_perts = fm_pert_data.keys()
-                    pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
+                basal_ctrl_adata.write(basal_ctrl_path, compression='gzip')
+            else:
+                basal_ctrl_adata = sc.read_h5ad(basal_ctrl_path)
 
-                    ctrl_expr = basal_ctrl_adata[basal_ctrl_adata.obs['condition'].isin(emb_perts), :]
-                    ctrl_expr = ctrl_expr.X.toarray()
-                    with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "wb") as f:
-                        pkl.dump(ctrl_expr, f)
+            if self.fm != 'raw_expression':
+                emb_perts = fm_pert_data.keys()
+                pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
 
-                    basal_ctrl_X = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
-                    for cell in tqdm(range(pert_adata.shape[0])):
-                        random_cells = np.random.choice(fm_ctrl_X.shape[0], subset_size)
-                        subset_X = fm_ctrl_X[random_cells, :]
-                        basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
+                ctrl_expr = basal_ctrl_adata[basal_ctrl_adata.obs['condition'].isin(emb_perts), :]
+                ctrl_expr = ctrl_expr.X.toarray()
+                with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "wb") as f:
+                    pkl.dump(ctrl_expr, f)
 
-                    basal_ctrl_X_empty = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
-                    basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X_empty, obs=pert_adata.obs)
-                    basal_ctrl_adata.obsm['X'] = basal_ctrl_X
+                basal_ctrl_X = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
+                for cell in tqdm(range(pert_adata.shape[0])):
+                    random_cells = np.random.choice(fm_ctrl_X.shape[0], subset_size)
+                    subset_X = fm_ctrl_X[random_cells, :]
+                    basal_ctrl_X[cell, :] = subset_X.mean(axis=0)
 
-                    # basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad",
-                    #                    compression='gzip')
-                    basal_ctrl_adata.write(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+                basal_ctrl_X_empty = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
+                basal_ctrl_adata = anndata.AnnData(X=basal_ctrl_X_empty, obs=pert_adata.obs)
+                basal_ctrl_adata.obsm['X'] = basal_ctrl_X
+
+                basal_ctrl_adata.write(embed_basal_ctrl_path, compression='gzip')
         else:
             if self.fm == 'raw_expression':
                 basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
@@ -242,7 +261,7 @@ class PerturbData(Dataset):
             else:
                 with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "rb") as f:
                     ctrl_expr = pkl.load(f)
-                basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/embed_basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+                basal_ctrl_adata = sc.read_h5ad(embed_basal_ctrl_path)
                 emb_perts = fm_pert_data.keys()
                 pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
                 pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
@@ -256,10 +275,6 @@ class PerturbData(Dataset):
 
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
-
-        # if not os.path.exists(f"{self.data_path}/test_perts_split_{self.spectral_parameter}.pkl"):
-        #     with open(f"{self.data_path}/test_perts_{self.spectral_parameter}.pkl", "wb") as f:
-        #         pkl.dump(test_perts, f)
 
         train_target = pert_adata[pert_adata.obs['condition'].isin(train_perts), :]
         test_target = pert_adata[pert_adata.obs['condition'].isin(test_perts), :]
@@ -325,11 +340,12 @@ class PerturbData(Dataset):
                 else:
                     raise KeyError("basal_ctrl_adata should be AnnData with 'obsm' attribute with 'X' key!")
 
-            pert_embs_train = np.zeros((num_train_cells, num_genes))
+            emb_dim = fm_ctrl_X.shape[1]
+            pert_embs_train = np.zeros((num_train_cells, emb_dim))
             for i, pert in enumerate(all_perts_train):
                 pert_embs_train[i, :] = fm_pert_data[pert].mean(axis=0)
 
-            pert_embs_test = np.zeros((num_test_cells, num_genes))
+            pert_embs_test = np.zeros((num_test_cells, emb_dim))
             for i, pert in enumerate(all_perts_test):
                 pert_embs_test[i, :] = fm_pert_data[pert].mean(axis=0)
 
@@ -559,7 +575,7 @@ class PerturbData(Dataset):
         raise HydraException(f"Completed preprocessing and featurisation of split {self.spectral_parameter}. Moving "
                              f"on the next multirun...")
 
-        return X_train, train_target, X_val, val_target, X_test, test_target
+        # return X_train, train_target, X_val, val_target, X_test, test_target
 
     @staticmethod
     def compute_correlations(pert, basal_ctrl_adata, all_gene_expression):
@@ -587,14 +603,11 @@ class PerturbData(Dataset):
                 return self.X_train[index], self.train_target[index]
             elif self.stage == "val":
                 return self.X_val[index], self.val_target[index]
-            elif self.eval_type is None:
+            elif self.stage == "test" and self.deg_dict is None:
                 return self.X_test[index], self.test_target[index]
             else:
-                assert "_de" in self.eval_type, "eval_type must be None or '{pert}_de'!"
-                sp = self.spectral_parameter.split('_')[0]
-                perturbed = self.eval_type.split('_')[0]
-                with open(f"{self.data_path}/de_test/split_{sp}/{perturbed}_de_idx.pkl", "rb") as f:
-                    de_idx = pkl.load(f)
+                all_genes = self.basal_ctrl_adata.var.index.to_list()
+                de_idx = [all_genes.index(gene) for gene in self.deg_dict[self.perturbation] if gene in all_genes]
                 return self.X_test[index], self.test_target[index], {"de_idx": de_idx}
         else:
             if self.stage == "train":
@@ -616,5 +629,7 @@ class PerturbData(Dataset):
             return len(self.X_train)
         elif self.stage == "val":
             return len(self.X_val)
-        else:
+        elif self.stage == "test":
             return len(self.X_test)
+        else:
+            raise ValueError(f"Invalid stage: {self.stage}. Must be 'train', 'val' or 'test'")

@@ -37,30 +37,19 @@ class PredictionModule(LightningModule):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
-    def model_step(self, batch: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        if len(batch) == 3:
-            x, y, arg = batch
-            if isinstance(arg, dict):
-                pass
-            else:
-                input_expr = arg
-                try:
-                    if input_expr.dtype != torch.float32:
-                        input_expr = input_expr.to(torch.float32)
-                except AttributeError:
-                    if isinstance(input_expr, list):
-                        input_expr = torch.tensor(input_expr, dtype=torch.float32)
-                    else:
-                        raise ValueError("Input expression must be a tensor or a list")
-        else:
-            x, y = batch
-            input_expr = x[:, :x.shape[1] // 2]
+    def model_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[dict]]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        x, y, input_expr = batch if len(batch) == 3 else (*batch, None)
 
         if x.dtype != torch.float32:
             x = x.to(torch.float32)
 
         if y.dtype != torch.float32:
             y = y.to(torch.float32)
+
+        if input_expr is None:
+            input_expr = x[:, :x.shape[1] // 2]
+        elif input_expr.dtype != torch.float32:
+            input_expr = input_expr.to(torch.float32)
 
         preds = self.forward(x)
         pert_effect = y - input_expr
@@ -83,26 +72,30 @@ class PredictionModule(LightningModule):
 
     def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor, Optional[list], Optional[torch.Tensor]],
                   batch_idx: int) -> None:
-        if len(batch) > 3:
-            x, y, *args = batch
-            if len(args) == 2:
-                de_idx, input_expr = args
-                de_idx = de_idx['de_idx']
-            else:
-                de_idx = args
-                de_idx = de_idx['de_idx']
-                input_expr = x[:, :x.shape[1] // 2]
+        x, y, de_dict = batch if len(batch) == 3 else (*batch, None)
+        input_expr = x[:, :x.shape[1] // 2]
+        if de_dict:
+            de_idx = de_dict['de_idx']
             loss, preds, targets = self.model_step((x, y, input_expr))
             num_genes = len(de_idx)
-            self.log("test/de_genes", num_genes, on_step=False, on_epoch=True, prog_bar=False)
+            mean_expr = torch.mean(input_expr, dim=0)
+            mean_expr = mean_expr.repeat(targets.shape[0], 1)
+            mean_eff = mean_expr - input_expr
+            self.log("test/num_de_genes", num_genes, on_step=False, on_epoch=True, prog_bar=False)
             de_idx = torch.tensor([int(idx[0]) for idx in de_idx])
             de_idx = torch.tensor(de_idx)
             preds = preds[:, de_idx]
             targets = targets[:, de_idx]
+            self.baseline_mse(mean_eff[:, de_idx], targets)
             self.test_mse(preds, targets)
-            self.log("test_de/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
+            baseline_mse_value = self.baseline_mse.compute()
+            test_mse_value = self.test_mse.compute()
+            adjusted_mse = test_mse_value - baseline_mse_value
+            self.log("test/adjusted_mse", adjusted_mse, on_step=False, on_epoch=True, prog_bar=True)
+            # self.log("de_test/baseline_mse", self.baseline_mse, on_step=False, on_epoch=True, prog_bar=False)
+            # self.log("de_test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
         else:
-            loss, preds, targets = self.model_step(batch)
+            loss, preds, targets = self.model_step((x, y, input_expr))
             self.test_mse(preds, targets)
             self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
 
