@@ -7,14 +7,14 @@ from pertpy import data as scpert_data
 
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from src.data.perturb_dataset import PerturbData
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
 ROOT_DIR = os.path.dirname(SRC_DIR)
-#TODO make below nicer
-#DATA_DIR = '/data/scratch/wpw035/BioFoundry/data/splits/perturb'
+
 with open(f'{ROOT_DIR}/cache/data_dir_cache.txt', 'r') as f:
     DATA_DIR = f.read().strip()
 
@@ -65,7 +65,8 @@ class PertDataModule(LightningDataModule):
             replicate: int = 0,
             batch_size: int = 64,
             spectra_parameters: Optional[Dict[str, Any]] = None,
-            eval_type: Optional[str] = None,
+            deg_eval: Optional[str] = None,
+            eval_pert: Optional[str] = None,
             num_workers: int = 0,
             pin_memory: bool = False,
             **kwargs: Any,
@@ -80,7 +81,7 @@ class PertDataModule(LightningDataModule):
         :param pin_memory: Whether to pin memory. Defaults to `False`.
         """
         super().__init__()
-
+        self.deg_dict = None
         self.num_genes = None
         self.num_perts = None
         self.pert_data = None
@@ -91,7 +92,8 @@ class PertDataModule(LightningDataModule):
         self.test_dataset = None
         self.spectra_parameters = spectra_parameters
         self.data_name = data_name
-        self.eval_type = eval_type
+        self.deg_eval = deg_eval
+        self.eval_pert = eval_pert
         
         self.fm = kwargs.get("fm", None)
 
@@ -108,8 +110,6 @@ class PertDataModule(LightningDataModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
         self.data_path = os.path.join(data_dir, self.data_name)
-
-        # todo: debug MSE nans
 
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
@@ -174,15 +174,17 @@ class PertDataModule(LightningDataModule):
 
             self.train_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
                                              self.spectra_parameters, self.fm, stage="train")
+
             self.val_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
                                            self.spectra_parameters, self.fm, stage="val")
 
-            if not self.eval_type:
+            if not self.deg_eval:
                 self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
                                                 self.spectra_parameters, self.fm, stage="test")
             else:
-                self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,
-                                                self.spectra_parameters, self.fm, stage="test", eval_type=self.eval_type)
+                deg_dict = pkl.load(open(f"{self.data_path}/de_test/deg_pert_dict.pkl", "rb"))
+                self.test_dataset = PerturbData(adata, self.data_path, self.spectral_parameter, self.spectra_parameters,
+                                                self.fm, perturbation=self.eval_pert, deg_dict=deg_dict, stage="test")
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
