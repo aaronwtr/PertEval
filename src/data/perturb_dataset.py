@@ -614,15 +614,12 @@ class PerturbData(Dataset):
                 return self.X_train[index], self.train_target[index], self.ctrl_expr[index]
             elif self.stage == "val":
                 return self.X_val[index], self.val_target[index], self.ctrl_expr[index]
-            elif self.eval_type is None:
-                return self.X_test[index], self.test_target[index], self.ctrl_expr[index]
+            elif self.stage == "test" and self.deg_dict is None:
+                return self.X_test[index], self.test_target[index]
             else:
-                assert "_de" in self.eval_type, "eval_type must be None or '{pert}_de'!"
-                sp = self.spectral_parameter.split('_')[0]
-                perturbed = self.eval_type.split('_')[0]
-                with open(f"{self.data_path}/de_test/split_{sp}/{perturbed}_de_idx.pkl", "rb") as f:
-                    de_idx = pkl.load(f)
-                return self.X_test[index], self.test_target[index], {"de_idx": de_idx}, self.ctrl_expr[index]
+                all_genes = self.basal_ctrl_adata.var.index.to_list()
+                de_idx = [all_genes.index(gene) for gene in self.deg_dict[self.perturbation] if gene in all_genes]
+                return self.X_test[index], self.test_target[index], {"de_idx": de_idx}
 
     def __len__(self):
         if self.stage == "train":
