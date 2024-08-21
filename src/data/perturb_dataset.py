@@ -48,14 +48,9 @@ class PerturbData(Dataset):
 
         if self.data_name == "norman":
             if not os.path.exists(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz"):
-                pp_data = self.preprocess_and_featurise_norman(adata)
                 self.basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
-                if self.fm == 'raw_expression':
-                    (self.X_train, self.train_target, self.X_val, self.val_target, self.X_test,
-                     self.test_target) = pp_data
-                else:
-                    (self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target,
-                     self.ctrl_expr) = pp_data
+                (self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target,
+                 self.ctrl_expr) = self.preprocess_and_featurise_norman(adata)
             else:
                 self.basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
                 with gzip.open(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
@@ -64,9 +59,8 @@ class PerturbData(Dataset):
                     self.X_val, self.val_target = pkl.load(f)
                 with gzip.open(f"{feature_path}/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_test, self.test_target = pkl.load(f)
-                if self.fm != 'raw_expression':
-                    with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "rb") as f:
-                        self.ctrl_expr = pkl.load(f)
+                with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
+                    self.ctrl_expr = pkl.load(f)
 
         if self.data_name == "replogle_rpe1":
             if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
@@ -102,7 +96,7 @@ class PerturbData(Dataset):
         filtered_adata = adata[:, nonzero_genes]
         single_gene_mask = [True if "," not in name else False for name in adata.obs['guide_ids']]
         sg_adata = filtered_adata[single_gene_mask, :]
-        sg_adata.obs['condition'] = sg_adata.obs['guide_ids'].replace('', 'ctrl')
+        sg_adata.obs['condition'] = sg_adata.obs['guide_ids'].cat.rename_categories({'': 'ctrl'})
 
         genes = sg_adata.var['gene_symbols'].to_list()
         genes_and_ctrl = genes + ['ctrl']
@@ -123,6 +117,7 @@ class PerturbData(Dataset):
 
         pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
         all_perts = list(set(pert_adata.obs['condition'].to_list()))
+
 
         num_cells = ctrl_adata.shape[0]
         num_perts = len(all_perts)
@@ -161,12 +156,15 @@ class PerturbData(Dataset):
             fm_pert_data = {pert: emb for pert, emb in fm_pert_data.items() if emb.shape[0] > 0}
             unique_perts = list(fm_pert_data.keys())
 
-            assert isinstance(fm_ctrl_data, (np.ndarray, anndata.AnnData)), ("fm_ctrl_data should be an array or an "
-                                                                             "h5ad file!")
+            assert isinstance(fm_ctrl_data, (np.ndarray, anndata.AnnData, pd.DataFrame)), ("fm_ctrl_data should be an "
+                                                                                           "array, dataframe or h5ad "
+                                                                                           "file!")
 
             if isinstance(fm_ctrl_data, anndata.AnnData):
                 assert hasattr(fm_ctrl_data, 'obsm'), "fm_ctrl_data should have an attribute 'obsm'!"
                 fm_ctrl_X = fm_ctrl_data.obsm['X']
+            elif isinstance(fm_ctrl_data, pd.DataFrame):
+                fm_ctrl_X = fm_ctrl_data.values
             else:
                 fm_ctrl_X = fm_ctrl_data
 
@@ -240,7 +238,7 @@ class PerturbData(Dataset):
 
                 ctrl_expr = basal_ctrl_adata[basal_ctrl_adata.obs['condition'].isin(emb_perts), :]
                 ctrl_expr = ctrl_expr.X.toarray()
-                with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "wb") as f:
+                with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "wb") as f:
                     pkl.dump(ctrl_expr, f)
 
                 basal_ctrl_X = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
@@ -256,6 +254,12 @@ class PerturbData(Dataset):
                 basal_ctrl_adata.write(embed_basal_ctrl_path, compression='gzip')
         else:
             if self.fm == 'raw_expression':
+                assert os.path.exists(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl"), \
+                    ("raw_expression_{self.data_name}_pp_filtered.pkl does not exist! First run the script with a  "
+                     "foundation model to generate the raw expression data. This is because we need to know which are "
+                     "the perturbable genes which is inferred from the fm_pert_data.keys()")
+                with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
+                    ctrl_expr = pkl.load(f)
                 basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
                 pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
             else:
@@ -281,6 +285,8 @@ class PerturbData(Dataset):
 
         all_perts_train = train_target.obs['condition'].values
         all_perts_test = test_target.obs['condition'].values
+
+        unique_perts = list(set(basal_ctrl_adata.obs['condition'].to_list()))
 
         if self.fm == 'raw_expression':
             if not os.path.exists(f"{self.data_path}/pert_corrs.pkl"):
@@ -325,7 +331,7 @@ class PerturbData(Dataset):
             test_input_expr = basal_ctrl_adata[random_test_mask, :].X.toarray()
 
             raw_X_train = np.concatenate((train_input_expr, pert_corr_train), axis=1)
-            X_test = np.concatenate((test_input_expr, pert_corr_test))
+            X_test = np.concatenate((test_input_expr, pert_corr_test), axis=1)
         else:
             if isinstance(basal_ctrl_adata, anndata.AnnData):
                 obsm_keys = basal_ctrl_adata.obsm.keys()
@@ -379,10 +385,11 @@ class PerturbData(Dataset):
                        "wb") as f:
             pkl.dump((X_test, test_target), f)
 
-        if self.fm == 'raw_expression':
-            return X_train, train_target, X_val, val_target, X_test, test_target
-        else:
-            return X_train, train_target, X_val, val_target, X_test, test_target, ctrl_expr
+
+        import sys
+        sys.exit()
+
+        return X_train, train_target, X_val, val_target, X_test, test_target, ctrl_expr
 
     def preprocess_replogle(self, adata):
         adata.obs['condition'] = adata.obs['perturbation'].replace('control', 'ctrl')
@@ -598,28 +605,16 @@ class PerturbData(Dataset):
         pbar.close()
 
     def __getitem__(self, index):
-        if self.fm == "raw_expression":
-            if self.stage == "train":
-                return self.X_train[index], self.train_target[index]
-            elif self.stage == "val":
-                return self.X_val[index], self.val_target[index]
-            elif self.stage == "test" and self.deg_dict is None:
-                return self.X_test[index], self.test_target[index]
-            else:
-                all_genes = self.basal_ctrl_adata.var.index.to_list()
-                de_idx = [all_genes.index(gene) for gene in self.deg_dict[self.perturbation] if gene in all_genes]
-                return self.X_test[index], self.test_target[index], {"de_idx": de_idx}
+        if self.stage == "train":
+            return self.X_train[index], self.train_target[index], self.ctrl_expr[index]
+        elif self.stage == "val":
+            return self.X_val[index], self.val_target[index], self.ctrl_expr[index]
+        elif self.stage == "test" and self.deg_dict is None:
+            return self.X_test[index], self.test_target[index], self.ctrl_expr[index]
         else:
-            if self.stage == "train":
-                return self.X_train[index], self.train_target[index], self.ctrl_expr[index]
-            elif self.stage == "val":
-                return self.X_val[index], self.val_target[index], self.ctrl_expr[index]
-            elif self.stage == "test" and self.deg_dict is None:
-                return self.X_test[index], self.test_target[index], self.ctrl_expr[index]
-            else:
-                all_genes = self.basal_ctrl_adata.var.index.to_list()
-                de_idx = [all_genes.index(gene) for gene in self.deg_dict[self.perturbation] if gene in all_genes]
-                return self.X_test[index], self.test_target[index], {"de_idx": de_idx}, self.ctrl_expr[index]
+            all_genes = self.basal_ctrl_adata.var.index.to_list()
+            de_idx = [all_genes.index(gene) for gene in self.deg_dict[self.perturbation] if gene in all_genes]
+            return self.X_test[index], self.test_target[index], {"de_idx": de_idx}, self.ctrl_expr[index]
 
     def __len__(self):
         if self.stage == "train":
