@@ -385,10 +385,6 @@ class PerturbData(Dataset):
                        "wb") as f:
             pkl.dump((X_test, test_target), f)
 
-
-        import sys
-        sys.exit()
-
         return X_train, train_target, X_val, val_target, X_test, test_target, ctrl_expr
 
     def preprocess_replogle(self, adata):
