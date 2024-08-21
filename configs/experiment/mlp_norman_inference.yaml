@@ -8,15 +8,17 @@ defaults:
   - override /model: mlp
   - override /logger: wandb
 
-total_genes: 2061
-emb_dim: 2061
-train_date: "2024-08-06" # date of the training run in the format YYYY-MM-DD
-timestamp: "14-32-22" # time of the training run in the format HH-MM-SS
+total_genes: 2060
+emb_dim: 2060
+hidden_dim: 1024
+mean_adjusted: false
+train_date: "2024-08-21" # date of the training run in the format YYYY-MM-DD
+timestamp: "18-47-38" # time of the training run in the format HH-MM-SS
 
 data:
   data_name: "norman"
   deg_eval: true
-  eval_pert: 'ZBTB10'
+  eval_pert: 'AHR'
   split: 0.0
   replicate: 0
   fm: "raw_expression"
@@ -24,8 +26,9 @@ data:
 trainer:
   num_sanity_val_steps: 0
   inference_mode: true
+  accelerator: cpu
 
-ckpt_path: ${paths.log_dir}train/runs/${train_date}/${timestamp}/checkpoints/${callbacks.model_checkpoint.filename}
+ckpt_path: ${paths.log_dir}train/runs/${train_date}/${timestamp}/checkpoints/${callbacks.model_checkpoint.filename}.ckpt
 
 logger:
   wandb:

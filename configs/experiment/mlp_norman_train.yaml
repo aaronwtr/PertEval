@@ -9,14 +9,15 @@ defaults:
   - override /logger: wandb
 
 total_genes: 2060 # or embedding dim for scFM embeddings
-emb_dim: 512
+emb_dim: 2060
+hidden_dim: 1024
 
 data:
   data_name: "norman"
   split: 0.00
   replicate: 0
   batch_size: 64
-  fm: "scgpt"
+  fm: "raw_expression"
 
 trainer:
   max_epochs: 100
@@ -44,7 +45,7 @@ model:
   net:
     _target_: src.models.components.predictors.MLP
     in_dim: ${eval:'${emb_dim}*2'}
-    hidden_dim: 1024
+    # in_dim: ${emb_dim}
 
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
