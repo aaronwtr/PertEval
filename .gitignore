@@ -286,3 +286,5 @@ notebooks/plots/norman_SPECTRA_splits/SP_0.00_0/
 notebooks/plots/norman_spectral_property_graphs/
 
 configs/experiment/archive/
+
+notebooks/plots/generate_pert_level_scripts.ipynb
