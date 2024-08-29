@@ -9,19 +9,19 @@ defaults:
   - override /logger: wandb
 
 total_genes: 2060 # or embedding dim for scFM embeddings
-emb_dim: 2060
-hidden_dim: 1024
+emb_dim: 3072
+hidden_dim: 1536
 
 data:
   data_name: "norman"
-  split: 0.00
-  replicate: 0
+  split: 0.70
+  replicate: 2
   batch_size: 64
-  fm: "raw_expression"
+  fm: "scfoundation"
 
 trainer:
   max_epochs: 100
-  accelerator: cpu
+  accelerator: gpu
   devices: 1
 
 callbacks:
