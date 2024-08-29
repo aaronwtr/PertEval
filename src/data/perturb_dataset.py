@@ -48,7 +48,6 @@ class PerturbData(Dataset):
 
         if self.data_name == "norman":
             if not os.path.exists(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz"):
-                self.basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
                 (self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target,
                  self.ctrl_expr) = self.preprocess_and_featurise_norman(adata)
             else:
@@ -218,6 +217,7 @@ class PerturbData(Dataset):
 
             subset_size = 500
             if basal_ctrl_not_exists:
+                # equal subsampling to pair control cells with perturbed cells
                 ctrl_X = ctrl_adata.X.toarray()
 
                 basal_ctrl_X = np.zeros((pert_adata.shape[0], ctrl_X.shape[1]))
@@ -263,7 +263,7 @@ class PerturbData(Dataset):
                 basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
                 pert_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad")
             else:
-                with open(f"{self.data_path}/raw_expression_{self.data_name}_{self.fm}_pp_filtered.pkl", "rb") as f:
+                with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
                     ctrl_expr = pkl.load(f)
                 basal_ctrl_adata = sc.read_h5ad(embed_basal_ctrl_path)
                 emb_perts = fm_pert_data.keys()
