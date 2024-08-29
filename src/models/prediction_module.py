@@ -104,13 +104,6 @@ class PredictionModule(LightningModule):
             de_idx = torch.tensor(de_idx)
             preds = preds[:, de_idx]
             targets = targets[:, de_idx]
-            import pickle as pkl
-            # with open(f'/Users/aaronw/Desktop/PhD/Research/QMUL/Research/scBench/data/splits/perturb/norman/pert_effects/SPI1/pert_effect_target_scbert.pkl', 'wb') as f:
-            #     pkl.dump(targets, f)
-            with open(f'/Users/aaronw/Desktop/PhD/Research/QMUL/Research/scBench/data/splits/perturb/norman/pert_effects/SPI1/pert_effect_pred_scfoundation.pkl', 'wb') as f:
-                pkl.dump(preds, f)
-            import sys
-            sys.exit()
             if self.mean_adjusted:
                 mean_expr = torch.mean(input_expr, dim=0)
                 mean_expr = mean_expr.repeat(targets.shape[0], 1)
