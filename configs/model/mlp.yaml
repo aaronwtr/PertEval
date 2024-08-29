@@ -18,4 +18,3 @@ criterion:
 
 
 scheduler: null # set this in experiment config
-mean_adjusted: ${mean_adjusted}
