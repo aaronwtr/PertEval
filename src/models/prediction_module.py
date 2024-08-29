@@ -13,14 +13,12 @@ class PredictionModule(LightningModule):
             optimizer: torch.optim.Optimizer = torch.optim.Adam,
             criterion: Optional[torch.nn.Module] = nn.MSELoss(),
             compile: Optional[bool] = False,
-            scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-            mean_adjusted: Optional[bool] = False
+            scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None
     ) -> None:
         super().__init__()
 
         self.save_hyperparameters(logger=False)
 
-        self.mean_adjusted = mean_adjusted
         self.net = net
         self.model_type = model_type
 
@@ -104,19 +102,19 @@ class PredictionModule(LightningModule):
             de_idx = torch.tensor(de_idx)
             preds = preds[:, de_idx]
             targets = targets[:, de_idx]
-            if self.mean_adjusted:
-                mean_expr = torch.mean(input_expr, dim=0)
-                mean_expr = mean_expr.repeat(targets.shape[0], 1)
-                mean_eff = mean_expr - input_expr
-                self.baseline_mse(mean_eff[:, de_idx], targets)
-                baseline_mse_value = self.baseline_mse.compute()
-                self.test_mse(preds, targets)
-                test_mse_value = self.test_mse.compute()
-                adjusted_mse = test_mse_value - baseline_mse_value
-                self.log("test/adjusted_mse", adjusted_mse, on_step=False, on_epoch=True, prog_bar=True)
-            else:
-                self.test_mse(preds, targets)
-                self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
+            # if self.mean_adjusted:
+            #     mean_expr = torch.mean(input_expr, dim=0)
+            #     mean_expr = mean_expr.repeat(targets.shape[0], 1)
+            #     mean_eff = mean_expr - input_expr
+            #     self.baseline_mse(mean_eff[:, de_idx], targets)
+            #     baseline_mse_value = self.baseline_mse.compute()
+            #     self.test_mse(preds, targets)
+            #     test_mse_value = self.test_mse.compute()
+            #     adjusted_mse = test_mse_value - baseline_mse_value
+            #     self.log("test/adjusted_mse", adjusted_mse, on_step=False, on_epoch=True, prog_bar=True)
+            # else:
+            self.test_mse(preds, targets)
+            self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
 
     def setup(self, stage: str) -> None:
         """Lightning hook that is called at the beginning of fit (train + validate), validate,
