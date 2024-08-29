@@ -288,3 +288,11 @@ notebooks/plots/norman_spectral_property_graphs/
 configs/experiment/archive/
 
 notebooks/plots/generate_pert_level_scripts.ipynb
+
+notebooks/plots/aggregated_results/*
+
+example_shell_script.sh
+
+pert_effect.pkl
+
+src/models/prediction_module_legacy.py
