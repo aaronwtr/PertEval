@@ -109,31 +109,32 @@ class PerturbData(Dataset):
     def preprocess_and_featurise_norman(self, adata):
         nonzero_genes = (adata.X.sum(axis=0) > 5).A1
         filtered_adata = adata[:, nonzero_genes]
+        adata.obs['condition'] = adata.obs['guide_ids'].cat.rename_categories({'': 'ctrl'})
+        adata.obs['guide_ids'] = adata.obs['guide_ids'].cat.remove_categories('')
 
         if self.data_name == "norman_1":
-            single_gene_mask = [True if "," not in name else False for name in adata.obs['guide_ids']]
+            single_gene_mask = [True if "," not in name else False for name in adata.obs['condition']]
             adata = filtered_adata[single_gene_mask, :]
+        else:
+            adata.obs['condition'] = adata.obs['condition'].str.replace(',', '+')
 
-        adata.obs['condition'] = adata.obs['guide_ids'].cat.rename_categories({'': 'ctrl'})
         genes = adata.var['gene_symbols'].to_list()
         genes_and_ctrl = genes + ['ctrl']
 
-        # Extract conditions
+        # we remove the cells with perts that are not in the genes because we need gene expression values
+        # to generate an in-silico perturbation embedding
         if self.data_name == "norman_1":
             pert_adata = adata[adata.obs['condition'].isin(genes_and_ctrl), :]
         else:
             conditions = adata.obs['condition']
 
+            # need to account for the two-gene perturbations
             filtered_conditions = conditions.apply(
                 lambda cond: cond in genes_and_ctrl or (
-                        ',' in cond and all(gene in genes_and_ctrl for gene in cond.split(','))
+                        '+' in cond and all(gene in genes_and_ctrl for gene in cond.split('+'))
                 )
             )
             pert_adata = adata[filtered_conditions, :]
-
-        # we remove the cells with perts that are not in the genes because we need gene expression values
-        # to generate an in-silico perturbation embedding
-        # TODO: loop through the data and check if the genes including double genes are in genes_and_ctrl
 
         train, test, pert_list = get_splits.spectra(pert_adata,
                                                     self.data_path,
