@@ -140,12 +140,16 @@ class PertDataModule(LightningDataModule):
 
         Do not use it to assign state (self.x = y).
         """
-        if self.data_name in ["norman", "replogle_k562", "replogle_rpe1"]:
-            if f"{self.load_scpert_data[self.data_name]}.h5ad" not in os.listdir("data/"):
-                scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
+        if self.data_name in ["norman_1", "norman_2", "replogle_k562", "replogle_rpe1"]:
+            if "norman" in self.data_name:
+                data_name = "norman"
+            else:
+                data_name = self.data_name
+            if f"{self.load_scpert_data[data_name]}.h5ad" not in os.listdir("data/"):
+                scpert_loader = getattr(scpert_data, self.load_scpert_data[data_name])
                 scpert_loader()
         else:
-            raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman', "
+            raise ValueError(f"Data name {self.data_name} not recognized. Choose from: 'norman_1', 'norman_2', "
                              f"'replogle_k562', or replogle_rpe1")
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -169,7 +173,11 @@ class PertDataModule(LightningDataModule):
 
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            scpert_loader = getattr(scpert_data, self.load_scpert_data[self.data_name])
+            if 'norman' in self.data_name:
+                data_name = "norman"
+            else:
+                data_name = self.data_name
+            scpert_loader = getattr(scpert_data, self.load_scpert_data[data_name])
             adata = scpert_loader()
 
             self.train_dataset = PerturbData(adata, self.data_path, self.spectral_parameter,

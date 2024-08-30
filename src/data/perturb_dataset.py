@@ -46,7 +46,22 @@ class PerturbData(Dataset):
         if not os.path.exists(feature_path):
             os.makedirs(feature_path)
 
-        if self.data_name == "norman":
+        if self.data_name == "norman_1":
+            if not os.path.exists(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz"):
+                (self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target,
+                 self.ctrl_expr) = self.preprocess_and_featurise_norman(adata)
+            else:
+                self.basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
+                with gzip.open(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
+                    self.X_train, self.train_target = pkl.load(f)
+                with gzip.open(f"{feature_path}/val_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
+                    self.X_val, self.val_target = pkl.load(f)
+                with gzip.open(f"{feature_path}/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
+                    self.X_test, self.test_target = pkl.load(f)
+                with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
+                    self.ctrl_expr = pkl.load(f)
+
+        if self.data_name == "norman_2":
             if not os.path.exists(f"{feature_path}/train_data_{self.spectral_parameter}.pkl.gz"):
                 (self.X_train, self.train_target, self.X_val, self.val_target, self.X_test, self.test_target,
                  self.ctrl_expr) = self.preprocess_and_featurise_norman(adata)
@@ -75,6 +90,7 @@ class PerturbData(Dataset):
                 with gzip.open(f"{self.data_path}/input_features/test_data_{self.spectral_parameter}.pkl.gz",
                                "rb") as f:
                     self.X_test, self.test_target = pkl.load(f)
+
         if self.data_name == "replogle_k562":
             if not os.path.exists(f"{self.data_path}/input_features/train_data_{self.spectral_parameter}.pkl.gz"):
                 ctrl_adata, pert_adata, train, test, pert_list = self.preprocess_replogle(adata)
@@ -93,18 +109,33 @@ class PerturbData(Dataset):
     def preprocess_and_featurise_norman(self, adata):
         nonzero_genes = (adata.X.sum(axis=0) > 5).A1
         filtered_adata = adata[:, nonzero_genes]
-        single_gene_mask = [True if "," not in name else False for name in adata.obs['guide_ids']]
-        sg_adata = filtered_adata[single_gene_mask, :]
-        sg_adata.obs['condition'] = sg_adata.obs['guide_ids'].cat.rename_categories({'': 'ctrl'})
 
-        genes = sg_adata.var['gene_symbols'].to_list()
+        if self.data_name == "norman_1":
+            single_gene_mask = [True if "," not in name else False for name in adata.obs['guide_ids']]
+            adata = filtered_adata[single_gene_mask, :]
+
+        adata.obs['condition'] = adata.obs['guide_ids'].cat.rename_categories({'': 'ctrl'})
+        genes = adata.var['gene_symbols'].to_list()
         genes_and_ctrl = genes + ['ctrl']
+
+        # Extract conditions
+        if self.data_name == "norman_1":
+            pert_adata = adata[adata.obs['condition'].isin(genes_and_ctrl), :]
+        else:
+            conditions = adata.obs['condition']
+
+            filtered_conditions = conditions.apply(
+                lambda cond: cond in genes_and_ctrl or (
+                        ',' in cond and all(gene in genes_and_ctrl for gene in cond.split(','))
+                )
+            )
+            pert_adata = adata[filtered_conditions, :]
 
         # we remove the cells with perts that are not in the genes because we need gene expression values
         # to generate an in-silico perturbation embedding
-        sg_pert_adata = sg_adata[sg_adata.obs['condition'].isin(genes_and_ctrl), :]
+        # TODO: loop through the data and check if the genes including double genes are in genes_and_ctrl
 
-        train, test, pert_list = get_splits.spectra(sg_pert_adata,
+        train, test, pert_list = get_splits.spectra(pert_adata,
                                                     self.data_path,
                                                     self.spectra_params,
                                                     self.spectral_parameter
@@ -112,9 +143,9 @@ class PerturbData(Dataset):
 
         print(f"Norman dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
 
-        ctrl_adata = sg_pert_adata[sg_pert_adata.obs['condition'] == 'ctrl', :]
+        ctrl_adata = pert_adata[pert_adata.obs['condition'] == 'ctrl', :]
 
-        pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
+        pert_adata = pert_adata[pert_adata.obs['condition'] != 'ctrl', :]
         all_perts = list(set(pert_adata.obs['condition'].to_list()))
 
 
@@ -130,7 +161,10 @@ class PerturbData(Dataset):
                 non_zero_indices = ctrl_adata[:, pert_idx].X.sum(axis=1).nonzero()[0]
                 num_non_zeroes = len(non_zero_indices)
 
-                if len(non_zero_indices) < 500:
+                if len(non_zero_indices) == 0:
+                    print(f"{pert} has no nonzero values in the control dataset! Kicking it from the analysis.")
+                    continue
+                elif len(non_zero_indices) < 500:
                     sample_num = num_non_zeroes
                 else:
                     sample_num = 500
@@ -141,8 +175,13 @@ class PerturbData(Dataset):
 
             mask_df = pd.DataFrame(mask, columns=all_perts)
             mask_df.to_pickle(f"{self.data_path}/norman_mask_df.pkl")
+        else:
+            mask_df = pd.read_pickle(f"{self.data_path}/norman_mask_df.pkl")
 
-        gene_to_ensg = dict(zip(sg_pert_adata.var['gene_symbols'], sg_pert_adata.var_names))
+        mask_df_cells = mask_df.any(axis=0)
+        unique_perts = list(mask_df.columns[mask_df_cells])
+
+        gene_to_ensg = dict(zip(adata.var['gene_symbols'], adata.var_names))
 
         if self.fm != 'raw_expression':
             # load the embeddings
@@ -153,7 +192,6 @@ class PerturbData(Dataset):
                 fm_pert_data = pkl.load(f)
 
             fm_pert_data = {pert: emb for pert, emb in fm_pert_data.items() if emb.shape[0] > 0}
-            unique_perts = list(fm_pert_data.keys())
 
             assert isinstance(fm_ctrl_data, (np.ndarray, anndata.AnnData, pd.DataFrame)), ("fm_ctrl_data should be an "
                                                                                            "array, dataframe or h5ad "
@@ -185,7 +223,7 @@ class PerturbData(Dataset):
             # but the embed_basal_ctrl_adata does not exist, then we need to regenerate the basal_ctrl_adata for the
             # scFM model
 
-            pert_adata = sg_pert_adata[sg_pert_adata.obs['condition'] != 'ctrl', :]
+            pert_adata = pert_adata[pert_adata.obs['condition'] != 'ctrl', :]
 
             # Save control_data_raw for inference with scFMs and pert_data for contextual alignment experiment
             if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
@@ -195,21 +233,21 @@ class PerturbData(Dataset):
 
             if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
                 # This is the same between all models
-                sc.pp.normalize_total(sg_pert_adata)
-                sc.pp.log1p(sg_pert_adata)
-                sc.pp.highly_variable_genes(sg_pert_adata, n_top_genes=2000)
-                highly_variable_genes = sg_pert_adata.var_names[sg_pert_adata.var['highly_variable']]
+                sc.pp.normalize_total(pert_adata)
+                sc.pp.log1p(pert_adata)
+                sc.pp.highly_variable_genes(pert_adata, n_top_genes=2000)
+                highly_variable_genes = pert_adata.var_names[pert_adata.var['highly_variable']]
                 unique_perts_ensg = [gene_to_ensg[pert] for pert in unique_perts]
                 missing_perts = list(set(unique_perts_ensg) - set(highly_variable_genes))
                 combined_genes = list(set(highly_variable_genes) | set(missing_perts))
-                sg_hvg_adata = sg_pert_adata[:, combined_genes]
+                hvg_adata = pert_adata[:, combined_genes]
 
-                pert_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] != 'ctrl', :]
+                pert_adata = hvg_adata[hvg_adata.obs['condition'] != 'ctrl', :]
                 pert_adata = pert_adata[pert_adata.obs['condition'].isin(unique_perts), :]
 
                 pert_adata.write(f"{self.data_path}/{self.data_name}_pp_pert_filtered.h5ad", compression='gzip')
 
-                ctrl_adata = sg_hvg_adata[sg_hvg_adata.obs['condition'] == 'ctrl', :]
+                ctrl_adata = hvg_adata[hvg_adata.obs['condition'] == 'ctrl', :]
                 ctrl_adata.write(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad", compression='gzip')
             else:
                 ctrl_adata = sc.read_h5ad(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad")
@@ -254,10 +292,6 @@ class PerturbData(Dataset):
                 basal_ctrl_adata.write(embed_basal_ctrl_path, compression='gzip')
         else:
             if self.fm == 'raw_expression':
-                assert os.path.exists(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl"), \
-                    ("raw_expression_{self.data_name}_pp_filtered.pkl does not exist! First run the script with a  "
-                     "foundation model to generate the raw expression data. This is because we need to know which are "
-                     "the perturbable genes which is inferred from the fm_pert_data.keys()")
                 with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
                     ctrl_expr = pkl.load(f)
                 basal_ctrl_adata = sc.read_h5ad(f"{self.data_path}/basal_ctrl_{self.data_name}_pp_filtered.h5ad")
