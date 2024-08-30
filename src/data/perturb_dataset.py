@@ -30,6 +30,7 @@ class PerturbData(Dataset):
         self.data_processor = None
         self.deg_dict = None
         self.basal_ctrl_adata = None
+        self.genes = None
 
         if kwargs:
             if 'deg_dict' in kwargs and 'perturbation' in kwargs:
@@ -118,8 +119,8 @@ class PerturbData(Dataset):
         else:
             adata.obs['condition'] = adata.obs['condition'].str.replace(',', '+')
 
-        genes = adata.var['gene_symbols'].to_list()
-        genes_and_ctrl = genes + ['ctrl']
+        self.genes = adata.var['gene_symbols'].to_list()
+        genes_and_ctrl = self.genes + ['ctrl']
 
         # we remove the cells with perts that are not in the genes because we need gene expression values
         # to generate an in-silico perturbation embedding
@@ -149,35 +150,69 @@ class PerturbData(Dataset):
         pert_adata = pert_adata[pert_adata.obs['condition'] != 'ctrl', :]
         all_perts = list(set(pert_adata.obs['condition'].to_list()))
 
-
         num_cells = ctrl_adata.shape[0]
         num_perts = len(all_perts)
 
         # generate embedding mask for the perturbable genes with nonzero expression values
-        if not os.path.exists(f"{self.data_path}/norman_mask_df.pkl"):
-            mask = np.zeros((num_cells, num_perts), dtype=bool)
+        if self.data_name == "norman_1":
+            if not os.path.exists(f"{self.data_path}/norman_mask_df.pkl"):
+                mask = np.zeros((num_cells, num_perts), dtype=bool)
 
-            for i, pert in enumerate(all_perts):
-                pert_idx = genes.index(pert)
-                non_zero_indices = ctrl_adata[:, pert_idx].X.sum(axis=1).nonzero()[0]
-                num_non_zeroes = len(non_zero_indices)
+                for idx, pert in enumerate(all_perts):
+                    mask = self.sg_pert_mask(mask, pert, idx, ctrl_adata)
 
-                if len(non_zero_indices) == 0:
-                    print(f"{pert} has no nonzero values in the control dataset! Kicking it from the analysis.")
-                    continue
-                elif len(non_zero_indices) < 500:
-                    sample_num = num_non_zeroes
-                else:
-                    sample_num = 500
-
-                sampled_indices = np.random.choice(non_zero_indices, sample_num, replace=False)
-
-                mask[sampled_indices, i] = True
-
-            mask_df = pd.DataFrame(mask, columns=all_perts)
-            mask_df.to_pickle(f"{self.data_path}/norman_mask_df.pkl")
+                mask_df = pd.DataFrame(mask, columns=all_perts)
+                mask_df.to_pickle(f"{self.data_path}/norman_mask_df.pkl")
+            else:
+                mask_df = pd.read_pickle(f"{self.data_path}/norman_mask_df.pkl")
         else:
-            mask_df = pd.read_pickle(f"{self.data_path}/norman_mask_df.pkl")
+            if not os.path.exists(f"{self.data_path}/norman_mask_dg_df.pkl"):
+                mask = np.zeros((num_cells, num_perts), dtype=bool)
+
+                for idx, pert in enumerate(all_perts):
+                    if '+' not in pert:
+                        mask = self.sg_pert_mask(mask, pert, idx, ctrl_adata)
+                    else:
+                        pert1, pert2 = pert.split('+')
+                        try:
+                            pert_idx_1 = self.genes.index(pert1)
+                            pert_idx_2 = self.genes.index(pert2)
+                        except ValueError:
+                            print(f"{pert} not found in the gene list. Cannot do in silico perturbation.")
+                            continue
+
+                        # Find indices where both pert1 and pert2 are non-zero
+                        both_non_zero_indices = np.intersect1d(
+                            ctrl_adata[:, pert_idx_1].X.nonzero()[0],
+                            ctrl_adata[:, pert_idx_2].X.nonzero()[0]
+                        )
+
+                        # Find indices where either pert1 or pert2 is non-zero
+                        either_non_zero_indices = np.union1d(
+                            ctrl_adata[:, pert_idx_1].X.nonzero()[0],
+                            ctrl_adata[:, pert_idx_2].X.nonzero()[0]
+                        )
+
+                        # Sample cells
+                        sampled_indices = []
+                        if len(both_non_zero_indices) > 0:
+                            sampled_indices.extend(both_non_zero_indices)
+
+                        if len(sampled_indices) < 500:
+                            remaining_sample_size = 500 - len(sampled_indices)
+                            additional_indices = np.setdiff1d(either_non_zero_indices, both_non_zero_indices)
+                            if len(additional_indices) > 0:
+                                sampled_indices.extend(np.random.choice(additional_indices, min(remaining_sample_size,
+                                                                                                len(additional_indices)),
+                                                                        replace=False))
+
+                        sampled_indices = np.array(sampled_indices[:500])
+                        mask[sampled_indices, idx] = True
+
+                mask_df = pd.DataFrame(mask, columns=all_perts)
+                mask_df.to_pickle(f"{self.data_path}/norman_mask_df_dg.pkl")
+            else:
+                mask_df = pd.read_pickle(f"{self.data_path}/norman_mask_df_dg.pkl")
 
         mask_df_cells = mask_df.any(axis=0)
         unique_perts = list(mask_df.columns[mask_df_cells])
@@ -624,16 +659,23 @@ class PerturbData(Dataset):
         correlations[np.isnan(correlations)] = 0
         return pert, correlations
 
-    @staticmethod
-    def generate_random_in_chunks(low, high, num_total, chunk_size=1000):
-        num_generated = 0
-        pbar = tqdm(total=num_total)
-        while num_generated < num_total:
-            num_to_generate = min(chunk_size, num_total - num_generated)
-            yield np.random.randint(low, high, num_to_generate)
-            num_generated += num_to_generate
-            pbar.update(num_to_generate)
-        pbar.close()
+    def sg_pert_mask(self, mask, pert, idx, ctrl_adata):
+        pert_idx = self.genes.index(pert)
+        non_zero_indices = ctrl_adata[:, pert_idx].X.sum(axis=1).nonzero()[0]
+        num_non_zeroes = len(non_zero_indices)
+
+        if len(non_zero_indices) == 0:
+            print(f"{pert} has no nonzero values in the control dataset! Kicking it from the analysis.")
+            return mask
+        elif len(non_zero_indices) < 500:
+            sample_num = num_non_zeroes
+        else:
+            sample_num = 500
+
+        sampled_indices = np.random.choice(non_zero_indices, sample_num, replace=False)
+        mask[sampled_indices, idx] = True
+
+        return mask
 
     def __getitem__(self, index):
         if self.stage == "train":
