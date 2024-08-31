@@ -135,9 +135,9 @@ class PerturbData(Dataset):
                         '+' in cond and all(gene in genes_and_ctrl for gene in cond.split('+'))
                 )
             )
-            pert_adata = adata[filtered_conditions, :]
+            adata = adata[filtered_conditions, :]
 
-        train, test, pert_list = get_splits.spectra(pert_adata,
+        train, test, pert_list = get_splits.spectra(adata,
                                                     self.data_path,
                                                     self.spectra_params,
                                                     self.spectral_parameter
@@ -145,9 +145,9 @@ class PerturbData(Dataset):
 
         print(f"Norman dataset has {len(pert_list)} perturbations in common with the genes in the dataset.")
 
-        ctrl_adata = pert_adata[pert_adata.obs['condition'] == 'ctrl', :]
+        ctrl_adata = adata[adata.obs['condition'] == 'ctrl', :]
 
-        pert_adata = pert_adata[pert_adata.obs['condition'] != 'ctrl', :]
+        pert_adata = adata[adata.obs['condition'] != 'ctrl', :]
         all_perts = list(set(pert_adata.obs['condition'].to_list()))
 
         num_cells = ctrl_adata.shape[0]
@@ -259,8 +259,6 @@ class PerturbData(Dataset):
             # but the embed_basal_ctrl_adata does not exist, then we need to regenerate the basal_ctrl_adata for the
             # scFM model
 
-            pert_adata = pert_adata[pert_adata.obs['condition'] != 'ctrl', :]
-
             # Save control_data_raw for inference with scFMs and pert_data for contextual alignment experiment
             if not os.path.exists(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad"):
                 ctrl_adata.write(f"{self.data_path}/ctrl_{self.data_name}_raw_counts.h5ad", compression='gzip')
@@ -269,14 +267,17 @@ class PerturbData(Dataset):
 
             if not os.path.exists(f"{self.data_path}/{self.data_name}_pp_ctrl_filtered.h5ad"):
                 # This is the same between all models
-                sc.pp.normalize_total(pert_adata)
-                sc.pp.log1p(pert_adata)
-                sc.pp.highly_variable_genes(pert_adata, n_top_genes=2000)
-                highly_variable_genes = pert_adata.var_names[pert_adata.var['highly_variable']]
-                unique_perts_ensg = [gene_to_ensg[pert] for pert in unique_perts]
+                sc.pp.normalize_total(adata)
+                sc.pp.log1p(adata)
+                sc.pp.highly_variable_genes(adata, n_top_genes=2000)
+                highly_variable_genes = pert_adata.var_names[adata.var['highly_variable']]
+                if self.data_name == "norman_1":
+                    unique_perts_ensg = [gene_to_ensg[pert] for pert in unique_perts]
+                else:
+                    unique_perts_ensg = [gene_to_ensg[pert] for pert in unique_perts if '+' not in pert]
                 missing_perts = list(set(unique_perts_ensg) - set(highly_variable_genes))
                 combined_genes = list(set(highly_variable_genes) | set(missing_perts))
-                hvg_adata = pert_adata[:, combined_genes]
+                hvg_adata = adata[:, combined_genes]
 
                 pert_adata = hvg_adata[hvg_adata.obs['condition'] != 'ctrl', :]
                 pert_adata = pert_adata[pert_adata.obs['condition'].isin(unique_perts), :]
