@@ -307,15 +307,16 @@ class PerturbData(Dataset):
             else:
                 basal_ctrl_adata = sc.read_h5ad(basal_ctrl_path)
 
-            if self.fm != 'raw_expression':
-                emb_perts = fm_pert_data.keys()
-                pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
-
-                ctrl_expr = basal_ctrl_adata[basal_ctrl_adata.obs['condition'].isin(emb_perts), :]
+            if not os.path.exists(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl"):
+                ctrl_expr = basal_ctrl_adata[basal_ctrl_adata.obs['condition'].isin(unique_perts), :]
                 ctrl_expr = ctrl_expr.X.toarray()
                 with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "wb") as f:
                     pkl.dump(ctrl_expr, f)
+            else:
+                with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
+                    ctrl_expr = pkl.load(f)
 
+            if self.fm != 'raw_expression':
                 basal_ctrl_X = np.zeros((pert_adata.shape[0], fm_ctrl_X.shape[1]))
                 for cell in tqdm(range(pert_adata.shape[0])):
                     random_cells = np.random.choice(fm_ctrl_X.shape[0], subset_size)
@@ -347,7 +348,7 @@ class PerturbData(Dataset):
         assert ctrl_cell_conditions == pert_cell_conditions, ("Watch out! Cell conditions in control and perturbation "
                                                               "datasets are not the or same, or are not indexed the "
                                                               "same!")
-
+        
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
 
@@ -359,6 +360,7 @@ class PerturbData(Dataset):
 
         unique_perts = list(set(basal_ctrl_adata.obs['condition'].to_list()))
 
+        # TODO: Continue here
         if self.fm == 'raw_expression':
             if not os.path.exists(f"{self.data_path}/pert_corrs.pkl"):
                 all_gene_expression = basal_ctrl_adata.X
