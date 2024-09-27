@@ -8,16 +8,22 @@ defaults:
   - override /model: mlp
   - override /logger: wandb
 
-total_genes: 2060 # or embedding dim for scFM embeddings
-emb_dim: 3072
-hidden_dim: 1536
+total_genes: 2064 # 2060 for norman_1, 2064 for norman_2
+emb_dim: 1280
+hidden_dim: 640
+mean_adjusted: false
+save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
+
 
 data:
-  data_name: "norman"
-  split: 0.70
-  replicate: 2
+  data_name: "norman_2"
+  data_type: "uce"
+  split: 0.0
+  deg_eval: false
+  eval_pert: null
+  replicate: 0
   batch_size: 64
-  fm: "scfoundation"
+  fm: "uce"
 
 trainer:
   max_epochs: 100
@@ -54,3 +60,5 @@ model:
     factor: 0.1
     patience: 10
     min_lr: 5e-9
+
+  data_name: "${data.data_name}"

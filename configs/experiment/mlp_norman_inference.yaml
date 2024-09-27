@@ -12,16 +12,18 @@ total_genes: 2060
 emb_dim: 2060
 hidden_dim: 1024
 mean_adjusted: false
+save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
 train_date: "2024-08-24" # date of the training run in the format YYYY-MM-DD
 timestamp: "15-15-52" # time of the training run in the format HH-MM-SS
 
 data:
-  data_name: "norman"
+  data_name: "norman_1"
+  data_type: "raw_expression"
   deg_eval: true
-  eval_pert: 'SET'
+  eval_pert: 'AHR'
   split: 0.0
   replicate: 0
-  fm: "raw_expression"
+  fm: "mean"
 
 trainer:
   num_sanity_val_steps: 0

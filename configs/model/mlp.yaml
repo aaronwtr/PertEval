@@ -16,5 +16,7 @@ optimizer:
 criterion:
   _target_: torch.nn.MSELoss
 
-
-scheduler: null # set this in experiment config
+# set these in experiment config
+scheduler: null 
+save_dir: ${save_dir} # path to save the predictions
+mean_adjusted: ${mean_adjusted}
