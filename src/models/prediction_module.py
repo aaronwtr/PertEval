@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from lightning import LightningModule
 from torchmetrics import MeanSquaredError, MeanMetric
+import pickle as pkl
 
 
 class PredictionModule(LightningModule):
@@ -13,11 +14,17 @@ class PredictionModule(LightningModule):
             optimizer: torch.optim.Optimizer = torch.optim.Adam,
             criterion: Optional[torch.nn.Module] = nn.MSELoss(),
             compile: Optional[bool] = False,
-            scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None
+            scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+            mean_adjusted: Optional[bool] = False,
+            data_name: Optional[str] = None,
+            save_dir: Optional[str] = None
     ) -> None:
         super().__init__()
 
+        self.save_dir = save_dir
         self.save_hyperparameters(logger=False)
+        self.mean_adjusted = mean_adjusted
+        self.data_name = data_name
 
         self.net = net
         self.model_type = model_type
@@ -77,7 +84,16 @@ class PredictionModule(LightningModule):
                   batch_idx: int) -> None:
         de_dict = None
         if len(batch) == 4:
-            x, y, de_dict, input_expr = batch
+            x, y, _de_dict_or_test_pert, input_expr = batch
+            if isinstance(_de_dict_or_test_pert, dict):
+                de_dict = _de_dict_or_test_pert
+            else:
+                test_perts = _de_dict_or_test_pert
+                test_perts_idx = [i for i, pert in enumerate(test_perts) if '+' in pert]
+                input_expr = input_expr[test_perts_idx, :]
+                x = x[test_perts_idx, :]
+                y = y[test_perts_idx, :]
+
         elif len(batch) == 3:
             x, y, _expr_or_de_dict = batch
             if isinstance(_expr_or_de_dict, dict):
@@ -87,7 +103,6 @@ class PredictionModule(LightningModule):
                 input_expr = _expr_or_de_dict
         else:
             x, y = batch
-            # input_expr = x[:, :x.shape[1] // 2]
             input_expr = x
         if not de_dict:
             loss, preds, targets = self.model_step((x, y, input_expr))
@@ -96,23 +111,10 @@ class PredictionModule(LightningModule):
         else:
             de_idx = de_dict['de_idx']
             loss, preds, targets = self.model_step((x, y, de_idx, input_expr))
-            num_genes = len(de_idx)
-            self.log("test/num_de_genes", num_genes, on_step=False, on_epoch=True, prog_bar=False)
             de_idx = torch.tensor([int(idx[0]) for idx in de_idx])
             de_idx = torch.tensor(de_idx)
             preds = preds[:, de_idx]
             targets = targets[:, de_idx]
-            # if self.mean_adjusted:
-            #     mean_expr = torch.mean(input_expr, dim=0)
-            #     mean_expr = mean_expr.repeat(targets.shape[0], 1)
-            #     mean_eff = mean_expr - input_expr
-            #     self.baseline_mse(mean_eff[:, de_idx], targets)
-            #     baseline_mse_value = self.baseline_mse.compute()
-            #     self.test_mse(preds, targets)
-            #     test_mse_value = self.test_mse.compute()
-            #     adjusted_mse = test_mse_value - baseline_mse_value
-            #     self.log("test/adjusted_mse", adjusted_mse, on_step=False, on_epoch=True, prog_bar=True)
-            # else:
             self.test_mse(preds, targets)
             self.log("test/mse", self.test_mse, on_step=False, on_epoch=True, prog_bar=True)
 

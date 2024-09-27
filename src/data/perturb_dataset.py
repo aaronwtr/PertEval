@@ -739,10 +739,6 @@ class PerturbData(Dataset):
             return self.X_val[index], self.val_target[index], self.ctrl_expr[index]
         elif self.stage == "test" and self.deg_dict is None:
             if self.all_perts_test is not None:
-                # print the shape of the categorical self.all_perts_test
-                print(self.all_perts_test.shape)
-                print(index)
-                print(len(self.test_target))
                 return self.X_test[index], self.test_target[index], self.all_perts_test[index], self.ctrl_expr[index]
             else:
                 return self.X_test[index], self.test_target[index], self.ctrl_expr[index]
