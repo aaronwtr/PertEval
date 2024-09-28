@@ -9,25 +9,25 @@ defaults:
   - override /logger: wandb
 
 total_genes: 2064 # 2060 for norman_1, 2064 for norman_2
-emb_dim: 1280
-hidden_dim: 640
+emb_dim: 512
+hidden_dim: 256
 mean_adjusted: false
 save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
 
 
 data:
   data_name: "norman_2"
-  data_type: "uce"
+  data_type: "geneformer"
   split: 0.0
   deg_eval: false
   eval_pert: null
   replicate: 0
   batch_size: 64
-  fm: "uce"
+  fm: "geneformer"
 
 trainer:
   max_epochs: 100
-  accelerator: gpu
+  accelerator: cpu
   devices: 1
 
 callbacks:
