@@ -298,3 +298,15 @@ pert_effect.pkl
 src/models/prediction_module_legacy.py
 
 src/data/perturb_dataprocessor.py
+
+notebooks/plots/individual_results/
+
+notebooks/plots/visualize_spectra_norman_2.ipynb
+
+notebooks/plots/visualize_perturb_effect.ipynb
+
+*.gz
+
+notebooks/plots/sc_norman_precalculated_spectra_properties
+
+.DS_Store
