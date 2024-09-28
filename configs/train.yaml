@@ -10,7 +10,7 @@ defaults:
   - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: cpu
   - paths: default
-  - extras: null
+  - extras: default
   - hydra: default
 
   # experiment configs allow for version control of specific hyperparameters
@@ -32,9 +32,10 @@ model_type: null # set in experiment config
 # task name, determines output directory path
 task_name: "train"
 
-##number of features in the input data,
+##number of features in the input data, and embedding dimension of fm in consideration
 ##must be specified in the experiment config
 total_genes: null
+emb_dim: null
 
 # tags to help you identify your experiments
 # you can overwrite this in experiment configs

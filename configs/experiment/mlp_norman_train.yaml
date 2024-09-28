@@ -2,25 +2,33 @@
 
 # run with `python src/train.py experiment=mlp_norman_train`
 
-model_type: "mlp" # pick from mlp or lr
+model_type: "mlp" # pick from mean, mlp or lr
 
 defaults:
   - override /model: mlp
   - override /logger: wandb
 
-total_genes: 2061 # or embedding dim for scFM embeddings
+total_genes: 2064 # 2060 for norman_1, 2064 for norman_2
+emb_dim: 512
+hidden_dim: 256
+mean_adjusted: false
+save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
+
 
 data:
-  data_name: "norman"
-  split: 0.00
+  data_name: "norman_2"
+  data_type: "geneformer"
+  split: 0.0
+  deg_eval: false
+  eval_pert: null
   replicate: 0
-  batch_size: 32
-  fm: "raw_expression"
+  batch_size: 64
+  fm: "geneformer"
 
 trainer:
-  max_epochs: 30
-  accelerator: gpu
-  devices: 2
+  max_epochs: 100
+  accelerator: cpu
+  devices: 1
 
 callbacks:
   learning_rate_monitor:
@@ -29,20 +37,28 @@ callbacks:
 
 logger:
   wandb:
-    tags: ["${model_type}", "${data.data_name}", "split_${data.split}", "replicate_${data.replicate}", "hpo"]
+    tags: ["${model_type}", "${data.data_name}", "${data.fm}","split_${data.split}", "replicate_${data.replicate}", "hpo"]
     group: "${model_type}_${data.data_name}_${data.split}"
+    project: "perturbench-local"
 
 model:
   optimizer:
     _target_: torch.optim.Adam
     _partial_: true
-    lr: 5e-5
-    weight_decay: 0.0
+    lr: 5e-6
+    weight_decay: 0
+
+  net:
+    _target_: src.models.components.predictors.MLP
+    in_dim: ${eval:'${emb_dim}*2'}
+    # in_dim: ${emb_dim}
 
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
     _partial_: true
     mode: 'min'
     factor: 0.1
-    patience: 15
+    patience: 10
     min_lr: 5e-9
+
+  data_name: "${data.data_name}"

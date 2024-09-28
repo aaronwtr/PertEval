@@ -7,9 +7,9 @@ defaults:
 
 # output directory, generated dynamically on each run
 run:
-  dir: ${paths.log_dir}/${task_name}/runs/${now:%Y-%m-%d}_${now:%H-%M-%S}
+  dir: ${paths.log_dir}/${task_name}/runs/${now:%Y-%m-%d}_${now:%H-%M-%S}_${data.fm}_${data.split}_${data.replicate}
 sweep:
-  dir: ${paths.log_dir}/${task_name}/multiruns/${now:%Y-%m-%d}_${now:%H-%M-%S}
+  dir: ${paths.log_dir}/${task_name}/multiruns/${now:%Y-%m-%d}_${now:%H-%M-%S}_${data.fm}_${data.split}_${data.replicate}
   subdir: ${hydra.job.num}
 
 job_logging:
@@ -18,4 +18,3 @@ job_logging:
       # Incorporates fix from https://github.com/facebookresearch/hydra/pull/2242
       filename: "${hydra.runtime.output_dir}/train_${model_type}_${data.split}_${data.replicate}.log"
       #filename: "${hydra.runtime.output_dir}_${task_name}_${model_type}_${data.split}_${data.replicate}/train.log"
-

@@ -44,9 +44,12 @@ def extras(cfg: DictConfig) -> None:
         log.info("Printing config tree with Rich! <cfg.extras.print_config=True>")
         rich_utils.print_config_tree(cfg, resolve=True, save_to_file=True)
 
-    # writing data_dir to cache for easy access
-    with open(f'{os.getcwd()}/cache/data_dir_cache.txt', 'w') as f:
-        f.write(cfg.get("data")['data_dir'])
+    if cfg.extras.get('distributed_storage'):
+        # writing data_dir to cache for easy access
+        if not os.path.exists(f'{os.getcwd()}/cache'):
+            os.makedirs(f'{os.getcwd()}/cache')
+        with open(f'{os.getcwd()}/cache/data_dir_cache.txt', 'w') as f:
+            f.write(cfg.get("data")['data_dir'])
 
 
 def task_wrapper(task_func: Callable) -> Callable:

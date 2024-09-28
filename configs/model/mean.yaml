@@ -1,0 +1,4 @@
+_target_: src.models.prediction_module.PredictionModule
+
+net:
+  _target_: src.models.components.predictors.MeanExpression

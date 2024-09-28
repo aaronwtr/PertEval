@@ -2,21 +2,21 @@ _target_: src.models.prediction_module.PredictionModule
 
 net:
   _target_: src.models.components.predictors.MLP
-  in_dim: ${eval:'${total_genes}*2'}
-  hidden_dim: 512
+  in_dim: ${eval:'${emb_dim}*2'}
+  hidden_dim: ${hidden_dim}
   out_dim: ${total_genes}
   num_layers: 1
 
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 1e-5
+  lr: 1e-3
   weight_decay: 0.0
 
 criterion:
   _target_: torch.nn.MSELoss
 
-
-scheduler: null # set this in experiment config
-
-
+# set these in experiment config
+scheduler: null 
+save_dir: ${save_dir} # path to save the predictions
+mean_adjusted: ${mean_adjusted}
