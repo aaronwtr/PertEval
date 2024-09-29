@@ -14,7 +14,7 @@
 
 ## Description
 
-PertEval is a comprehensive evaluation framework designed perturbation response prediction.
+PertEval is a comprehensive evaluation framework designed for perturbation response prediction.
 
 Key features:
 
