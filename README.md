@@ -53,7 +53,7 @@ Alternatively, using virtualenv:
 
 ### Install requirements
 `pip install -r requirements.txt`
-```
+
 
 ## Making a Lightning DataModule 
 
