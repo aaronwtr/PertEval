@@ -46,7 +46,7 @@ Alternatively, using virtualenv:
 `python3.10 -m venv perteval`
 
 ### Windows:
-`pert\Scripts\activate`
+`perteval\Scripts\activate`
 
 ### MacOS/Linux
 `source perteval/bin/activate`
