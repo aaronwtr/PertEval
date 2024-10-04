@@ -12,6 +12,8 @@
 --->
 </div>
 
+![PertEval-scFM Graphical Abstract](figures/PertEval-scFM.png)
+
 ## Description
 
 PertEval is a comprehensive evaluation framework designed for perturbation response prediction.
