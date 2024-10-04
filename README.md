@@ -6,7 +6,7 @@
 <a href="https://pytorchlightning.ai/"><img alt="Lightning" src="https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white"></a>
 <a href="https://hydra.cc/"><img alt="Config: Hydra" src="https://img.shields.io/badge/Config-Hydra-89b8cd"></a>
 <a href="https://github.com/ashleve/lightning-hydra-template"><img alt="Template" src="https://img.shields.io/badge/-Lightning--Hydra--Template-017F2F?style=flat&logo=github&labelColor=gray"></a><br>
-[![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://www.nature.com/articles/nature14539)
+[![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)]([https://www.nature.com/articles/nature14539](https://www.biorxiv.org/content/10.1101/2024.10.02.616248v1))
 <!---
 [![Conference](http://img.shields.io/badge/AnyConference-year-4b44ce.svg)](https://papers.nips.cc/paper/2020)
 --->
@@ -40,9 +40,10 @@ cd PertEval
 # [OPTIONAL] create conda or virtual environment
 conda create -n perteval python=3.10
 conda activate perteval
+```
 
 Alternatively, using virtualenv:
-```
+
 `python3.10 -m venv perteval`
 
 ### Windows:
@@ -57,15 +58,13 @@ Alternatively, using virtualenv:
 
 ## Making a Lightning DataModule 
 
+Lightning DataModules allows you to add any dataset.
 [Lightning DataModule docs](https://lightning.ai/docs/pytorch/stable/data/datamodule.html) 
-
-{BODY EXPLANATION}
 
 ## Making a Lightning Module 
 
+Lightning Modules allows you to add any perturbation prediction model.
 [Lightning Module docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html)
-
-{BODY EXPLANATION}
 
 ## How to run
 
@@ -99,17 +98,21 @@ Evals work similar by calling
 python src/eval.py ckpt_path="/path/to/ckpt/name.ckpt"
 ```
 
-## Evaluating on differentially expressed gene for a perturbation 
+## Evaluating on differentially expressed gene for a perturbation  
 
-TODO: provide scripts for this 
+Step 1) Calculate significant perturbations with E-test [notebooks/preprocessing/significant_perts_edist.ipynb](notebooks/preprocessing/significant_perts_edist.ipynb) 
 
-Step 1) Obtain indices for DE genes for perturbation of interest matched with model input genes
+Step 2) Calculate differentially expressed genes for all significant perturbations [notebooks/preprocessing/diff_exp_refactored.ipynb](notebooks/preprocessing/diff_exp_refactored.ipynb) 
 
-Step 2) Run eval.py from an experiment config (e.g. mlp_norman_eval.yaml)
+Step 3) Prepare the inference config [configs/experiment/mlp_norman_inference.yaml](configs/experiment/mlp_norman_inference.yaml). 
+  - Add the path to the .ckpt file
+  - Add model you want to use
+  - Add the perturbation to be inspected 
+  - Set the proper split and replicate corresponding to the perturbation. (TODO: Automate)
+  - Update the corresponding hidden and embedding dimensions (TODO: Automate)
+  - (Optional) Prepare shell scripts to run many perturbations at once on an HPC [notebooks/preprocessing/generate_deg_scripts.ipynb](notebooks/preprocessing/generate_deg_scripts.ipynb) 
 
-Step 3) Set eval_type as {perturbation}_de and set ckpt_path pointing to the checkpoint for the split being evaluated in the experiment eval.yaml
-
-Step 4) Set split and replicate in the experiment eval.yaml
+Step 4) Run eval.py with the inference config,
 
 ## Setting up Weights and Biases logging and experiment tracking
 First install wandb via 
