@@ -310,3 +310,13 @@ notebooks/plots/visualize_perturb_effect.ipynb
 notebooks/plots/sc_norman_precalculated_spectra_properties
 
 .DS_Store
+
+configs/experiment/deg_evals_scgpt/
+
+configs/experiment/deg_evals_uce/
+
+configs/experiment/deg_evals_scfoundation/
+
+configs/experiment/deg_evals_scbert/
+
+configs/experiment/deg_evals_geneformer/
