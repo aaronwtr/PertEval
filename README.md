@@ -70,7 +70,7 @@ Lightning Modules allows you to add any perturbation prediction model.
 
 ## How to run
 
-The codebase has two entry points: `train.py` and `eval.py`. Which one you'll use depends on whether you want to train/fine-tune an existing model, or whether you have a pre-trained checkpoint you want to evaluate. 
+The codebase has two entry points: `train.py` and `eval.py`. Which one you'll use depends on whether you want to train/fine-tune an existing model, or whether you have a pre-trained checkpoint you want to evaluate. The codebase takes care of everything from dataloading and pre-processing to training. It also generates train-test splits with SPECTRA. If you want to investigate the train-test splits, this can be done in [plots/visualize_spectra_norman_1.ipynb](plots/visualize_spectra_norman_1.ipynb)
 
 Train model with default configuration
 
