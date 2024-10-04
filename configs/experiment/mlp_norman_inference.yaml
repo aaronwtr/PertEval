@@ -8,22 +8,22 @@ defaults:
   - override /model: mlp
   - override /logger: wandb
 
-total_genes: 2060
-emb_dim: 2060
-hidden_dim: 1024
+total_genes: 2064
+emb_dim: 200
+hidden_dim: 100
 mean_adjusted: false
 save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
-train_date: "2024-08-24" # date of the training run in the format YYYY-MM-DD
-timestamp: "15-15-52" # time of the training run in the format HH-MM-SS
+train_date: "2024-09-29" # date of the training run in the format YYYY-MM-DD
+timestamp: "18-08-36" # time of the training run in the format HH-MM-SS
 
 data:
-  data_name: "norman_1"
-  data_type: "raw_expression"
+  data_name: "norman_2"
+  data_type: "scbert"
   deg_eval: true
-  eval_pert: 'AHR'
-  split: 0.0
+  eval_pert: 'FOXL2+POU3F2'
+  split: 0.7
   replicate: 0
-  fm: "mean"
+  fm: "scbert"
 
 trainer:
   num_sanity_val_steps: 0
@@ -34,6 +34,6 @@ ckpt_path: ${paths.log_dir}train/runs/${train_date}/${timestamp}/checkpoints/${c
 
 logger:
   wandb:
-    tags: ["eval", "norman", "${data.eval_pert}", "${data.fm}", "split_${data.split}", "replicate_${data.replicate}"]
+    tags: ["eval", "${data.data_name}", "${data.eval_pert}", "${data.fm}", "split_${data.split}", "replicate_${data.replicate}"]
     group: "test_mean_norman_${data.split}"
     project: "perturbench-deg"

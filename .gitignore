@@ -320,3 +320,9 @@ configs/experiment/deg_evals_scfoundation/
 configs/experiment/deg_evals_scbert/
 
 configs/experiment/deg_evals_geneformer/
+
+notebooks/plots/combined_heatmap_barchart_sgp.png
+
+notebooks/plots/aggregated_perturbation_results_2-gene.ipynb
+
+notebooks/plots/aggregated_perturbation_results_2_2.ipynb
