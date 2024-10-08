@@ -12,10 +12,6 @@
 --->
 </div>
 
-![PertEval-scFM Graphical Abstract](figures/PertEval-scFM.png)
-
-## Description
-
 PertEval is a comprehensive evaluation framework designed for perturbation response prediction.
 
 Key features:
@@ -24,6 +20,11 @@ Key features:
 - **Standardized Evaluations**: Consistent benchmarking protocols and metrics for fair comparisons in transcriptomic perturbation prediction.
 - **Flexible Integration**: Easily extend the codebase with custom models and datasets for perturbation prediction tasks.
 - **Modular Design**: Built on top of PyTorch Lightning and Hydra, ensuring code organization and configurability.
+
+PertEval-scFM is composed of three mains parts: data pre-processing, model training and evaluation
+
+![PertEval-scFM Graphical Abstract](figures/PertEval-scFM.png)
+
 
 ## Installation
 
@@ -57,18 +58,23 @@ Alternatively, using virtualenv:
 ### Install requirements
 `pip install -r requirements.txt`
 
+[//]: # ()
+[//]: # (## Making a Lightning DataModule )
 
-## Making a Lightning DataModule 
+[//]: # ()
+[//]: # (Lightning DataModules allows you to add any dataset.)
 
-Lightning DataModules allows you to add any dataset.
-[Lightning DataModule docs](https://lightning.ai/docs/pytorch/stable/data/datamodule.html) 
+[//]: # ([Lightning DataModule docs]&#40;https://lightning.ai/docs/pytorch/stable/data/datamodule.html&#41; )
 
-## Making a Lightning Module 
+[//]: # ()
+[//]: # (## Making a Lightning Module )
 
-Lightning Modules allows you to add any perturbation prediction model.
-[Lightning Module docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html)
+[//]: # ()
+[//]: # (Lightning Modules allows you to add any perturbation prediction model.)
 
-## How to run
+[//]: # ([Lightning Module docs]&#40;https://lightning.ai/docs/pytorch/stable/common/lightning_module.html&#41;)
+
+## Training and Evaluation
 
 The codebase has two entry points: `train.py` and `eval.py`. Which one you'll use depends on whether you want to train/fine-tune an existing model, or whether you have a pre-trained checkpoint you want to evaluate. The codebase takes care of everything from dataloading and pre-processing to training. It also generates train-test splits with SPECTRA. If you want to investigate the train-test splits, this can be done in [plots/visualize_spectra_norman_1.ipynb](plots/visualize_spectra_norman_1.ipynb)
 
@@ -138,47 +144,71 @@ wandb:
   entity: "your_wandb_team_name"
 ```
 
-## Debugging
+[//]: # (## Debugging)
 
-The codebase is built on top of PyTorch Lightning and Hydra, which provides several useful features for debugging machine learning models. These features can help you quickly identify and fix issues during the training or fine-tuning of your model. Note that logs get placed into `logs/debugs/...`.
+[//]: # ()
+[//]: # (The codebase is built on top of PyTorch Lightning and Hydra, which provides several useful features for debugging machine learning models. These features can help you quickly identify and fix issues during the training or fine-tuning of your model. Note that logs get placed into `logs/debugs/...`.)
 
-#### Single Epoch Debugging
+[//]: # ()
+[//]: # (#### Single Epoch Debugging)
 
-When you want to quickly test your code or debug a specific issue, you can run the training for just a single epoch. This mode enforces debug-friendly configurations, such as setting all command-line loggers to debug mode, which provides more detailed logging output. To run training for a single epoch, use the following command:
+[//]: # ()
+[//]: # (When you want to quickly test your code or debug a specific issue, you can run the training for just a single epoch. This mode enforces debug-friendly configurations, such as setting all command-line loggers to debug mode, which provides more detailed logging output. To run training for a single epoch, use the following command:)
 
-```bash
-python train.py debug=default
-```
+[//]: # ()
+[//]: # (```bash)
 
-This mode is particularly useful when you want to verify that your data loading, model architecture, and training loop are working correctly before running the full training process.
+[//]: # (python train.py debug=default)
 
-#### One Batch Debugging
+[//]: # (```)
 
-If you need to debug a specific batch or step in your training, validation, or testing loop, you can run the code for just one batch through each loop. This mode allows you to inspect the intermediate tensors, gradients, and other variables at each step, making it easier to identify and fix issues related to a specific batch or data sample. To run this mode, use the following command:
+[//]: # ()
+[//]: # (This mode is particularly useful when you want to verify that your data loading, model architecture, and training loop are working correctly before running the full training process.)
 
-```bash
-python train.py debug=fdr
-```
+[//]: # ()
+[//]: # (#### One Batch Debugging)
 
-This mode is particularly useful when you encounter issues with a specific batch or data sample, such as numerical instabilities, data loading errors, or model output inconsistencies.
+[//]: # ()
+[//]: # (If you need to debug a specific batch or step in your training, validation, or testing loop, you can run the code for just one batch through each loop. This mode allows you to inspect the intermediate tensors, gradients, and other variables at each step, making it easier to identify and fix issues related to a specific batch or data sample. To run this mode, use the following command:)
 
-#### Overfitting to One Batch
+[//]: # ()
+[//]: # (```bash)
 
-In some cases, you might want to test your model's ability to overfit to a single batch of data. This can be helpful for verifying that your model has enough capacity to learn the training data and for debugging issues related to the optimization process or loss function. To run this mode, use the following command:
+[//]: # (python train.py debug=fdr)
 
-```bash
-python train.py debug=overfit
-```
+[//]: # (```)
 
-#### Detecting Numerical Anomalies
+[//]: # ()
+[//]: # (This mode is particularly useful when you encounter issues with a specific batch or data sample, such as numerical instabilities, data loading errors, or model output inconsistencies.)
 
-To detect these anomalies in the model's tensors, you can enable the anomaly detection. This feature will check for NaNs or infinities in your tensors and raise an exception if any are found, helping you identify and fix the root cause of these numerical issues. To enable this feature, use the following command:
+[//]: # ()
+[//]: # (#### Overfitting to One Batch)
 
-```bash
-python train.py +trainer.detect_anomaly=true
-```
+[//]: # ()
+[//]: # (In some cases, you might want to test your model's ability to overfit to a single batch of data. This can be helpful for verifying that your model has enough capacity to learn the training data and for debugging issues related to the optimization process or loss function. To run this mode, use the following command:)
 
-This mode is particularly useful when you encounter numerical instabilities or unexpected behaviors during training or inference, as it can help you identify the source of these issues more quickly.
+[//]: # ()
+[//]: # (```bash)
+
+[//]: # (python train.py debug=overfit)
+
+[//]: # (```)
+
+[//]: # ()
+[//]: # (#### Detecting Numerical Anomalies)
+
+[//]: # ()
+[//]: # (To detect these anomalies in the model's tensors, you can enable the anomaly detection. This feature will check for NaNs or infinities in your tensors and raise an exception if any are found, helping you identify and fix the root cause of these numerical issues. To enable this feature, use the following command:)
+
+[//]: # ()
+[//]: # (```bash)
+
+[//]: # (python train.py +trainer.detect_anomaly=true)
+
+[//]: # (```)
+
+[//]: # ()
+[//]: # (This mode is particularly useful when you encounter numerical instabilities or unexpected behaviors during training or inference, as it can help you identify the source of these issues more quickly.)
 
 #### Using a Subset of Data
 
