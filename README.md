@@ -100,7 +100,7 @@ You can override any parameter from command line like this
 python src/train.py trainer.max_epochs=20 data.batch_size=64
 ```
 
-Evals work similar by calling 
+To evaluate your model, run the following command with the path to the checkpoint file
 
 ```bash
 python src/eval.py ckpt_path="/path/to/ckpt/name.ckpt"
