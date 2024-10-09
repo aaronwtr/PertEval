@@ -1,5 +1,6 @@
 import torch
 import os
+from pathlib import PurePath
 import anndata
 import gzip
 
@@ -12,16 +13,14 @@ from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from hydra.errors import HydraException
-from scipy.sparse import csr_matrix
 from scipy.stats import pearsonr
 
 from src.utils.spectra import get_splits
-from src.data.perturb_dataprocessor import PertDataProcessor
 
 
 class PerturbData(Dataset):
     def __init__(self, adata, data_path, spectral_parameter, spectra_params, fm, stage, **kwargs):
-        self.data_name = data_path.split('/')[-1]
+        self.data_name = PurePath(data_path).parts[-1]
         self.data_path = data_path
         self.spectral_parameter = spectral_parameter
         self.spectra_params = spectra_params
