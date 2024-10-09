@@ -1,12 +1,12 @@
 import os
-
+from pathlib import PurePath
 import numpy as np
 
 from src.utils.spectra.perturb import PerturbGraphData, SPECTRAPerturb
 
 
 def spectra(sghv_pert_data, data_path, spectra_params, spectral_parameter):
-    data_name = data_path.split('/')[-1]
+    data_name = PurePath(data_path).parts[-1]
     perturb_graph_data = PerturbGraphData(sghv_pert_data, data_name)
 
     sc_spectra = SPECTRAPerturb(perturb_graph_data, binary=False)

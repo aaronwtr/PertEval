@@ -1,6 +1,8 @@
 # --------- pytorch --------- #
-torch>=2.0.0
-torchvision>=0.15.0
+
+# temporary fix for cross-platform torch install with cuda compatibility
+torch>=2.0.0; sys_platform != "win32" # "darwin" and "linux"
+torchvision>=0.15.0; sys_platform != "win32"
 lightning>=2.0.0
 torchmetrics>=0.11.4
 
@@ -24,6 +26,7 @@ pytest          # tests
 anndata==0.10.6
 networkx==3.2.1
 numpy==1.26.4
+numba==0.59.1
 omegaconf==2.3.0
 packaging==24.0
 pandas==2.2.2

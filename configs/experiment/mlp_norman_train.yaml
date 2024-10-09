@@ -6,7 +6,7 @@ model_type: "mlp" # pick from mean, mlp or lr
 
 defaults:
   - override /model: mlp
-  - override /logger: wandb
+#  - override /logger: wandb
 
 total_genes: 2064 # 2060 for norman_1, 2064 for norman_2
 emb_dim: 512
@@ -27,7 +27,7 @@ data:
 
 trainer:
   max_epochs: 100
-  accelerator: cpu
+  accelerator: gpu
   devices: 1
 
 callbacks:
