@@ -9,8 +9,8 @@ defaults:
 #  - override /logger: wandb
 
 total_genes: 2064 # 2060 for norman_1, 2064 for norman_2
-emb_dim: 512
-hidden_dim: 256
+emb_dim: 256 # 256 for geneformer
+hidden_dim: 128 # 128 for geneformer
 mean_adjusted: false
 save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
 

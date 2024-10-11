@@ -1,5 +1,4 @@
 # --------- pytorch --------- #
-
 # temporary fix for cross-platform torch install with cuda compatibility
 torch>=2.0.0; sys_platform != "win32" # "darwin" and "linux"
 torchvision>=0.15.0; sys_platform != "win32"
@@ -38,3 +37,4 @@ scanpy==1.10.0
 scipy==1.13.1
 setuptools==68.2.0
 tqdm==4.66.2
+gdown==5.2.0
