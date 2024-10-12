@@ -6,9 +6,9 @@ model_type: "mlp" # pick from mean, mlp or lr
 
 defaults:
   - override /model: mlp
-#  - override /logger: wandb
+  - override /logger: wandb
 
-total_genes: 2064 # 2060 for norman_1, 2064 for norman_2
+total_genes: 2060 # 2060 for norman_1, 2064 for norman_2
 emb_dim: 256 # 256 for geneformer
 hidden_dim: 128 # 128 for geneformer
 mean_adjusted: false
@@ -16,7 +16,7 @@ save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/per
 
 
 data:
-  data_name: "norman_2"
+  data_name: "norman_1"
   data_type: "geneformer"
   split: 0.0
   deg_eval: false

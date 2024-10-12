@@ -38,3 +38,4 @@ scipy==1.13.1
 setuptools==68.2.0
 tqdm==4.66.2
 gdown==5.2.0
+wandb===0.18.3

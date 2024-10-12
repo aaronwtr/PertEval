@@ -393,7 +393,7 @@ class PerturbData(Dataset):
         ctrl_cell_conditions = basal_ctrl_adata.obs['condition'].to_list()
 
         assert ctrl_cell_conditions == pert_cell_conditions, ("Watch out! Cell conditions in control and perturbation "
-                                                              "datasets are not the or same, or are not indexed the "
+                                                              "datasets are not the same, or are not indexed the "
                                                               "same!")
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
