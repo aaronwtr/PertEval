@@ -8,17 +8,17 @@ defaults:
   - override /model: mlp
   - override /logger: wandb
 
-total_genes: 2064 # 2060 for norman_1, 2064 for norman_2
-emb_dim: 512
-hidden_dim: 256
+total_genes: 2060 # 2060 for norman_1, 2064 for norman_2
+emb_dim: 256 # 256 for geneformer, 200 for scBert, 512 for scGPT, 1280 for UCE, 3072 for scFoundation
+hidden_dim: 128 # embed_dim / 2
 mean_adjusted: false
 save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
 
 
 data:
-  data_name: "norman_2"
+  data_name: "norman_1"
   data_type: "geneformer"
-  split: 0.0
+  split: 0.1
   deg_eval: false
   eval_pert: null
   replicate: 0
@@ -27,7 +27,7 @@ data:
 
 trainer:
   max_epochs: 100
-  accelerator: cpu
+  accelerator: gpu
   devices: 1
 
 callbacks:

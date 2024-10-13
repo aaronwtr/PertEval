@@ -1,7 +1,9 @@
 import torch
 import os
+from pathlib import PurePath
 import anndata
 import gzip
+import gdown
 
 import numpy as np
 import scanpy as sc
@@ -12,16 +14,14 @@ from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from hydra.errors import HydraException
-from scipy.sparse import csr_matrix
 from scipy.stats import pearsonr
 
 from src.utils.spectra import get_splits
-from src.data.perturb_dataprocessor import PertDataProcessor
 
 
 class PerturbData(Dataset):
     def __init__(self, adata, data_path, spectral_parameter, spectra_params, fm, stage, **kwargs):
-        self.data_name = data_path.split('/')[-1]
+        self.data_name = PurePath(data_path).parts[-1]
         self.data_path = data_path
         self.spectral_parameter = spectral_parameter
         self.spectra_params = spectra_params
@@ -228,9 +228,82 @@ class PerturbData(Dataset):
         gene_to_ensg = dict(zip(adata.var['gene_symbols'], adata.var_names))
 
         if self.fm != 'raw_expression':
+
+            # dictionary lookup of the file id for embeddings download
+            embeddings_file_id = {
+                'geneformer': {
+                            'norman_1': {
+                                'ctrl': "1yyQRcZEhdcsLOeMQKjZp7eSq6uHIYpwc", 
+                                'pert': "1nK-YeenYax84vV1LVLghg2aXF92CvvuA"
+                            },
+                            'norman_2': {
+                                'ctrl': "1DTuCqigOr4lIg8J2qBFnUIHXz3oMQQC1", 
+                                'pert': "1VWiv7VOaqra63HFocNWkWd-u-MxvGdfY"
+                            }
+                    },
+                'scgpt': {
+                            'norman_1': {
+                                'ctrl': '1ECHWwA5idPQspwfS74PMunxtN9Uj0CzR', 
+                                'pert': '1T1Vd779feygiDhW1zmWI67uN8dDQJcnq'
+                            },
+                            'norman_2': {
+                                'ctrl': '1Oy9u-YxyoQGjYLEclKyrSOf8G4LkrcKk', 
+                                'pert': '1v2wH3pr9TcSrTceRfFG_KBDsLg7RfTiR'
+                            }
+                    },
+                'scfoundation': {
+                            'norman_1': {
+                                'ctrl': '1JVLfShRXjwUgovX78qWDMiL1ZXhVgepQ', 
+                                'pert': '1CeYuSuUP408h33o11L1e82chV9WVwZXY'
+                            },
+                            'norman_2': {
+                                'ctrl': '1VHEV-lgPb2xe362yM3h6_NLhSBkn1jtp', 
+                                'pert': '1KaWNIJe--NPj5u7k00D0CCrTRJuunu98'
+                            }
+                    },
+                'scbert': {
+                            'norman_1': {
+                                'ctrl': '15p0kvoImPNfl31qYmTtGuyhB4GsaSbeu', 
+                                'pert': '1S1lMR6UhM5QUik0imv8A7G5f3i4xFj7R'
+                            },
+                            'norman_2': {
+                                'ctrl': '10JD689TmbvRAGzsQ9vwwHyvMsb4kv30f', 
+                                'pert': '1wl5GXnXbCU7ACtO4YF3Ii0kFVsIJhyOr'
+                            }
+                    },
+                'uce': {
+                            'norman_1': {
+                                'ctrl': '1AbhxtmJ8aYlMqprQC_h104elEGC3sBXX', 
+                                'pert': '1R3mRXLSwnlnKgSNBYEKQ5THAOqhfS9u5'
+                            },
+                            'norman_2': {
+                                'ctrl': '1yixfxWSMSzdjotBfrrwsHHqUuKCSJZ15', 
+                                'pert': '1FQvKSFma0TGO2RCOkOSWYLNREeUOjAKi'
+                            }
+                    }
+            }
+
+            # create embeddings folder if it does not exist
+            if not os.path.exists(f"{self.data_path}/embeddings"):
+                os.makedirs(f"{self.data_path}/embeddings", exist_ok=True)
+
+            # check the embeddings have been downloaded for the scFMs
+            if not os.path.exists(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_ctrl.pkl.gz"):
+                print(f"Downloading embeddings for {self.data_name} {self.fm} control data...")
+                # get file ID
+                file_id = embeddings_file_id[self.fm][self.data_name]['ctrl']
+                filename = f"{self.data_name}_{self.fm}_fm_ctrl.pkl.gz"
+                gdown.download(id=file_id,
+                               output=f"{self.data_path}/embeddings/{filename}")
+            if not os.path.exists(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_pert.pkl.gz"):
+                print(f"Downloading embeddings for {self.data_name} {self.fm} pertubation data...")
+                # get file ID
+                file_id = embeddings_file_id[self.fm][self.data_name]['pert']
+                filename = f"{self.data_name}_{self.fm}_fm_pert.pkl.gz"
+                gdown.download(id=file_id,
+                                 output=f"{self.data_path}/embeddings/{filename}")
             # load the embeddings
-            with gzip.open(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_ctrl.pkl.gz",
-                           "rb") as f:
+            with gzip.open(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_ctrl.pkl.gz","rb") as f:
                 fm_ctrl_data = pkl.load(f)
             with gzip.open(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_pert.pkl.gz", "rb") as f:
                 fm_pert_data = pkl.load(f)
@@ -355,7 +428,7 @@ class PerturbData(Dataset):
         ctrl_cell_conditions = basal_ctrl_adata.obs['condition'].to_list()
 
         assert ctrl_cell_conditions == pert_cell_conditions, ("Watch out! Cell conditions in control and perturbation "
-                                                              "datasets are not the or same, or are not indexed the "
+                                                              "datasets are not the same, or are not indexed the "
                                                               "same!")
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
