@@ -232,21 +232,56 @@ class PerturbData(Dataset):
             # dictionary lookup of the file id for embeddings download
             embeddings_file_id = {
                 'geneformer': {
-                                'norman_1': {'ctrl': "1yyQRcZEhdcsLOeMQKjZp7eSq6uHIYpwc", 'pert': "1nK-YeenYax84vV1LVLghg2aXF92CvvuA"},
-                                'norman_2': {'ctrl': "1DTuCqigOr4lIg8J2qBFnUIHXz3oMQQC1", 'pert': "1VWiv7VOaqra63HFocNWkWd-u-MxvGdfY"}},
+                            'norman_1': {
+                                'ctrl': "1yyQRcZEhdcsLOeMQKjZp7eSq6uHIYpwc", 
+                                'pert': "1nK-YeenYax84vV1LVLghg2aXF92CvvuA"
+                            },
+                            'norman_2': {
+                                'ctrl': "1DTuCqigOr4lIg8J2qBFnUIHXz3oMQQC1", 
+                                'pert': "1VWiv7VOaqra63HFocNWkWd-u-MxvGdfY"
+                            }
+                    },
                 'scgpt': {
-                                'norman_1': {'ctrl': '1ECHWwA5idPQspwfS74PMunxtN9Uj0CzR', 'pert': '1T1Vd779feygiDhW1zmWI67uN8dDQJcnq'},
-                                'norman_2': {'ctrl': '1Oy9u-YxyoQGjYLEclKyrSOf8G4LkrcKk', 'pert': '1v2wH3pr9TcSrTceRfFG_KBDsLg7RfTiR'}},
+                            'norman_1': {
+                                'ctrl': '1ECHWwA5idPQspwfS74PMunxtN9Uj0CzR', 
+                                'pert': '1T1Vd779feygiDhW1zmWI67uN8dDQJcnq'
+                            },
+                            'norman_2': {
+                                'ctrl': '1Oy9u-YxyoQGjYLEclKyrSOf8G4LkrcKk', 
+                                'pert': '1v2wH3pr9TcSrTceRfFG_KBDsLg7RfTiR'
+                            }
+                    },
                 'scfoundation': {
-                                'norman_1': {'ctrl': '1JVLfShRXjwUgovX78qWDMiL1ZXhVgepQ', 'pert': '1CeYuSuUP408h33o11L1e82chV9WVwZXY'},
-                                'norman_2': {'ctrl': '1VHEV-lgPb2xe362yM3h6_NLhSBkn1jtp', 'pert': '1KaWNIJe--NPj5u7k00D0CCrTRJuunu98'}},
+                            'norman_1': {
+                                'ctrl': '1JVLfShRXjwUgovX78qWDMiL1ZXhVgepQ', 
+                                'pert': '1CeYuSuUP408h33o11L1e82chV9WVwZXY'
+                            },
+                            'norman_2': {
+                                'ctrl': '1VHEV-lgPb2xe362yM3h6_NLhSBkn1jtp', 
+                                'pert': '1KaWNIJe--NPj5u7k00D0CCrTRJuunu98'
+                            }
+                    },
                 'scbert': {
-                                'norman_1': {'ctrl': '15p0kvoImPNfl31qYmTtGuyhB4GsaSbeu', 'pert': '1S1lMR6UhM5QUik0imv8A7G5f3i4xFj7R'},
-                                'norman_2': {'ctrl': '10JD689TmbvRAGzsQ9vwwHyvMsb4kv30f', 'pert': '1wl5GXnXbCU7ACtO4YF3Ii0kFVsIJhyOr'}},
+                            'norman_1': {
+                                'ctrl': '15p0kvoImPNfl31qYmTtGuyhB4GsaSbeu', 
+                                'pert': '1S1lMR6UhM5QUik0imv8A7G5f3i4xFj7R'
+                            },
+                            'norman_2': {
+                                'ctrl': '10JD689TmbvRAGzsQ9vwwHyvMsb4kv30f', 
+                                'pert': '1wl5GXnXbCU7ACtO4YF3Ii0kFVsIJhyOr'
+                            }
+                    },
                 'uce': {
-                                'norman_1': {'ctrl': '1AbhxtmJ8aYlMqprQC_h104elEGC3sBXX', 'pert': '1R3mRXLSwnlnKgSNBYEKQ5THAOqhfS9u5'},
-                                'norman_2': {'ctrl': '1yixfxWSMSzdjotBfrrwsHHqUuKCSJZ15', 'pert': '1FQvKSFma0TGO2RCOkOSWYLNREeUOjAKi'}}
-                                  }
+                            'norman_1': {
+                                'ctrl': '1AbhxtmJ8aYlMqprQC_h104elEGC3sBXX', 
+                                'pert': '1R3mRXLSwnlnKgSNBYEKQ5THAOqhfS9u5'
+                            },
+                            'norman_2': {
+                                'ctrl': '1yixfxWSMSzdjotBfrrwsHHqUuKCSJZ15', 
+                                'pert': '1FQvKSFma0TGO2RCOkOSWYLNREeUOjAKi'
+                            }
+                    }
+            }
 
             # create embeddings folder if it does not exist
             if not os.path.exists(f"{self.data_path}/embeddings"):
