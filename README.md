@@ -88,11 +88,11 @@ extracted with the following single-cell foundation models (scFM):
 
 | **Model name** | **Architecture**   | **Pre-training objective** | **# of cells**   | **Organism** | **Emb. dim.** |
 |-------------------|----------------|--------------------------|------------------|--------------|--------------|
-| **scBERT**            | Performer      | Masked language modeling | $\sim$5 million  | human  mouse | 200 |
-| **Geneformer**        | Transformer    | Masked language modeling | $\sim$30 million | human        | 256          |
-| **scGPT**             | FlashAttention | Specialized attention-masking mechanism | $\sim$33 million | human        | 512          |
-| **UCE**               | Transformer    | Masked language modeling | $\sim$36 million | 8 species    | 1,280        |
-| **scFoundation**      | Transformer    | Read-depth-aware modeling | $\sim$50 million | human        | 3,072        |
+| **scBERT**            | Performer      | Masked language modeling | ~5 million  | human  mouse | 200 |
+| **Geneformer**        | Transformer    | Masked language modeling | ~30 million | human        | 256          |
+| **scGPT**             | FlashAttention | Specialized attention-masking mechanism | ~33 million | human        | 512          |
+| **UCE**               | Transformer    | Masked language modeling | ~36 million | 8 species    | 1,280        |
+| **scFoundation**      | Transformer    | Read-depth-aware modeling | ~50 million | human        | 3,072        |
 
 ### Embeddings
 
