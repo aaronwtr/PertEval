@@ -8,7 +8,7 @@ defaults:
   - model: null # must be specified in experiment
   - callbacks: default
   - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
-  - trainer: cpu
+  - trainer: gpu
   - paths: default
   - extras: default
   - hydra: default
