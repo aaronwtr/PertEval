@@ -112,7 +112,7 @@ To run a specific experiment, point to the corresponding configuration file from
 [configs/experiment/](configs/experiment/) directory. For example:
 
 ```bash
-python src/train.py experiment=mlp_norman_geneformer_train.yaml
+python src/train.py experiment=mlp_norman_train.yaml
 ```
 
 In the config file you will be able to modify the configuration file to suit 
