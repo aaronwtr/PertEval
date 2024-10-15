@@ -273,15 +273,15 @@ class PerturbData(Dataset):
                     },
                 'uce': {
                             'norman_1': {
-                                'ctrl': '1AbhxtmJ8aYlMqprQC_h104elEGC3sBXX', 
-                                'pert': '1R3mRXLSwnlnKgSNBYEKQ5THAOqhfS9u5'
+                                'ctrl': '1CbAVdnmzaKF1p-VKKMynbR0PkBnXWCK8',
+                                'pert': '1fFQB8mgjB63v3OkwyCn599yMKYy9XPDb'
                             },
                             'norman_2': {
-                                'ctrl': '1yixfxWSMSzdjotBfrrwsHHqUuKCSJZ15', 
-                                'pert': '1FQvKSFma0TGO2RCOkOSWYLNREeUOjAKi'
+                                'ctrl': '1-WYImnrVxuu9RtHOdm1WDnfQD61QMX2U',
+                                'pert': '1OD7_wkh9LB7fHLdIPBDVD2saQY0hZW4O'
                             }
-                    }
-            }
+                    }           }
+
 
             # create embeddings folder if it does not exist
             if not os.path.exists(f"{self.data_path}/embeddings"):
