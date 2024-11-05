@@ -4,6 +4,7 @@ from pathlib import PurePath
 import anndata
 import gzip
 import gdown
+import warnings
 
 import numpy as np
 import scanpy as sc
@@ -424,12 +425,31 @@ class PerturbData(Dataset):
                     emb_perts = fm_pert_data.keys()
                     pert_adata = pert_adata[pert_adata.obs['condition'].isin(emb_perts), :]
 
-        pert_cell_conditions = pert_adata.obs['condition'].to_list()
         ctrl_cell_conditions = basal_ctrl_adata.obs['condition'].to_list()
+        pert_cell_conditions = pert_adata.obs['condition'].to_list()
 
-        assert ctrl_cell_conditions == pert_cell_conditions, ("Watch out! Cell conditions in control and perturbation "
-                                                              "datasets are not the same, or are not indexed the "
-                                                              "same!")
+        try:
+            assert ctrl_cell_conditions == pert_cell_conditions, ("Watch out! Cell conditions in control and perturbation "
+                                                                  "datasets are not the same, or are not indexed the "
+                                                                  "same!")
+        except AssertionError as e:
+            absent_fm = set(ctrl_cell_conditions) - set(pert_cell_conditions)
+            absent_ctrl = set(pert_cell_conditions) - set(ctrl_cell_conditions)
+            if absent_fm:
+                gene_index = basal_ctrl_adata.obs.index[basal_ctrl_adata.obs['condition'] != list(absent_fm)[0]]  # Get the index of the gene
+                basal_ctrl_adata = basal_ctrl_adata[gene_index, :]
+                warnings.warn(f"Absent perturbations in the perturbation dataset: {absent_fm}")
+            if absent_ctrl:
+                gene_index = pert_adata.obs.index[pert_adata.obs['condition'] != list(absent_ctrl)[0]]  # Get the index of the gene
+                pert_adata = pert_adata[gene_index, :]
+                warnings.warn(f"Absent perturbations in the control dataset: {absent_ctrl}")
+
+            ctrl_cell_conditions = basal_ctrl_adata.obs['condition'].to_list()
+            pert_cell_conditions = pert_adata.obs['condition'].to_list()
+            assert ctrl_cell_conditions == pert_cell_conditions, (" The cell conditions in control and perturbation "
+                                                                  "datasets are still not the same, or are not indexed the "
+                                                                  "same!")
+
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
 
