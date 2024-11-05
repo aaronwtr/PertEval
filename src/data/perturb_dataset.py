@@ -436,11 +436,13 @@ class PerturbData(Dataset):
             absent_fm = set(ctrl_cell_conditions) - set(pert_cell_conditions)
             absent_ctrl = set(pert_cell_conditions) - set(ctrl_cell_conditions)
             if absent_fm:
-                gene_index = basal_ctrl_adata.obs.index[basal_ctrl_adata.obs['condition'] != list(absent_fm)[0]]  # Get the index of the gene
+                gene_index = [index for gene in absent_fm for index in
+                                basal_ctrl_adata.obs.index[basal_ctrl_adata.obs['condition'] != gene]]
                 basal_ctrl_adata = basal_ctrl_adata[gene_index, :]
                 warnings.warn(f"Absent perturbations in the perturbation dataset: {absent_fm}")
             if absent_ctrl:
-                gene_index = pert_adata.obs.index[pert_adata.obs['condition'] != list(absent_ctrl)[0]]  # Get the index of the gene
+                gene_index = [index for gene in absent_ctrl for index in
+                              pert_adata.obs.index[pert_adata.obs['condition'] != gene]]
                 pert_adata = pert_adata[gene_index, :]
                 warnings.warn(f"Absent perturbations in the control dataset: {absent_ctrl}")
 
