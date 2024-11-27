@@ -49,6 +49,9 @@ def evaluate(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     # assert cfg.ckpt_path
 
+    if torch.cuda.is_available():
+        torch.set_float32_matmul_precision('medium')
+
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
 

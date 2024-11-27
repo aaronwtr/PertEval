@@ -1,0 +1,43 @@
+# @package _global_
+
+# run with `python src/eval.py experiment=mlp_norman_inference`
+
+model_type: "mlp" # pick from mlp or lr
+
+defaults:
+  - override /model: mlp
+  - override /logger: wandb
+
+total_genes: 3601
+emb_dim: 3601
+hidden_dim: 1024
+mean_adjusted: false
+save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
+train_date: "2024-11-26" # date of the training run in the format YYYY-MM-DD
+timestamp: "20-17-47" # time of the training run in the format HH-MM-SS
+
+data:
+  data_name: "replogle_k562"
+  data_type: "raw_expression"
+  deg_eval: false
+  eval_pert: null
+  split: 0.1
+  replicate: 0
+  batch_size: 4
+  fm: "raw_expression"
+
+trainer:
+  num_sanity_val_steps: 0
+  inference_mode: true
+  accelerator: gpu
+  devices: 1
+  precision: 32
+
+ckpt_path: ${paths.log_dir}train/runs/${train_date}/${timestamp}/checkpoints/${callbacks.model_checkpoint.filename}.ckpt
+# ckpt_path: null
+
+logger:
+  wandb:
+    tags: ["eval", "${data.data_name}", "${data.fm}", "split_${data.split}", "replicate_${data.replicate}"]
+    group: "${model_type}_${data.data_name}_${data.split}"
+    project: "perturbench-local"
