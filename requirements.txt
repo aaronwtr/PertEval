@@ -22,7 +22,7 @@ rootutils       # standardizing the project root setup
 pre-commit      # hooks for applying linters on commit
 rich            # beautiful text formatting in terminal
 pytest          # tests
-anndata==0.10.6
+anndata==0.10.9
 networkx==3.2.1
 numpy==1.26.4
 numba==0.59.1
