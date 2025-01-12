@@ -90,7 +90,7 @@ extracted with the following single-cell foundation models (scFM):
 |-------------------|----------------|--------------------------|------------------|--------------|--------------|
 | **scBERT**            | Performer      | Masked language modeling | ~5 million  | human  mouse | 200 |
 | **Geneformer**        | Transformer    | Masked language modeling | ~30 million | human        | 256          |
-| **scGPT**             | FlashAttention | Specialized attention-masking mechanism | ~33 million | human        | 512          |
+| **scGPT**             | Transformer | Specialized attention-masking mechanism | ~33 million | human        | 512          |
 | **UCE**               | Transformer    | Masked language modeling | ~36 million | 8 species    | 1,280        |
 | **scFoundation**      | Transformer    | Read-depth-aware modeling | ~50 million | human        | 3,072        |
 
