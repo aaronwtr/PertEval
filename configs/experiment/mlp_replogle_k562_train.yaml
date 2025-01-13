@@ -9,27 +9,27 @@ defaults:
   - override /logger: wandb
 
 total_genes: 3601 # 3601 for replogle_k562, 2061 for norman_1, 2064 for norman_2
-emb_dim: 256 # 256/512 for geneformer Norman_1/Norman_2, 200 for scBert, 512 for scGPT, 1280 for UCE, 3072 for scFoundation
-hidden_dim: 128 # embed_dim / 2
+emb_dim: 3601 # 256/512 for geneformer Norman_1/Norman_2, 200 for scBert, 512 for scGPT, 1280 for UCE, 3072 for scFoundation
+hidden_dim: 1024 # embed_dim / 2
 mean_adjusted: false
 save_dir: ${paths.data_dir}/${data.data_name}/pert_effects/${data.eval_pert}/pert_effect_pred_${data.fm}.pkl
 
 
 data:
   data_name: "replogle_k562"
-  data_type: "fm"
-  split: 0.0
+  data_type: "raw_expression"
+  split: 0.2
   deg_eval: false
   eval_pert: null
-  replicate: 0
-  batch_size: 8
-  fm: "geneformer"
+  replicate: 1
+  batch_size: 1
+  fm: "raw_expression"
 
 trainer:
   max_epochs: 100
   accelerator: gpu
   devices: 1
-  precision: 32
+  precision: 16-mixed
 
 callbacks:
   learning_rate_monitor:
@@ -48,11 +48,6 @@ model:
     _partial_: true
     lr: 5e-6
     weight_decay: 0
-
-  net:
-    _target_: src.models.components.predictors.MLP
-    in_dim: ${eval:'${emb_dim}*2'}
-    # in_dim: ${emb_dim}
 
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
