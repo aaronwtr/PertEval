@@ -122,11 +122,13 @@ class PerturbData(Dataset):
                     self.X_val, self.val_target = pkl.load(f)
                 with gzip.open(f"{feature_path}/test_data_{self.spectral_parameter}.pkl.gz", "rb") as f:
                     self.X_test, self.test_target = pkl.load(f)
-                with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
-                    if PerturbData.ctrl_expr_cache is None:
-                        with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
-                            PerturbData.ctrl_expr_cache = pkl.load(f)
+                if PerturbData.ctrl_expr_cache is None:
+                    with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
+                        PerturbData.ctrl_expr_cache = pkl.load(f)
                     self.ctrl_expr = PerturbData.ctrl_expr_cache
+                else:
+                    with open(f"{self.data_path}/raw_expression_{self.data_name}_pp_filtered.pkl", "rb") as f:
+                        self.ctrl_expr = pkl.load(f)
 
     def preprocess_and_featurise(self, adata):
         if "norman" in self.data_name:
@@ -264,6 +266,9 @@ class PerturbData(Dataset):
             if not os.path.exists(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_ctrl.pkl.gz"):
                 print(f"Downloading embeddings for {self.data_name} {self.fm} control data...")
                 # get file ID
+                if embeddings.embedding_links[self.fm][self.data_name]['ctrl'] is '':
+                    raise NotImplementedError(f"Embeddings for {self.data_name} {self.fm} data are not yet "
+                                              f"available")
                 file_id = embeddings.embedding_links[self.fm][self.data_name]['ctrl']
                 filename = f"{self.data_name}_{self.fm}_fm_ctrl.pkl.gz"
                 gdown.download(id=file_id,
