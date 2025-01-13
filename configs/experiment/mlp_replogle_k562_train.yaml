@@ -29,7 +29,7 @@ trainer:
   max_epochs: 100
   accelerator: gpu
   devices: 1
-  precision: 16-mixed
+  precision: 32
 
 callbacks:
   learning_rate_monitor:
