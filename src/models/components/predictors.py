@@ -18,9 +18,10 @@ class LinearRegressionModel(torch.nn.Module):
 
 
 class MLP(torch.nn.Module):
-    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, num_layers: int,
+    def __init__(self, in_dim: int, hidden_dim: float, out_dim: int, num_layers: int,
                  layer_activation: nn.Module = nn.ReLU()):
         super().__init__()
+        hidden_dim = int(hidden_dim)
         self.layer_activation = layer_activation
 
         self.layers = nn.ModuleList()
