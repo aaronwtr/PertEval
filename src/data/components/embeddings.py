@@ -65,8 +65,8 @@ embedding_links = {
             'pert': '1OD7_wkh9LB7fHLdIPBDVD2saQY0hZW4O'
         },
         'replogle_k562': {
-            'ctrl': '',
-            'pert': ''
+            'ctrl': '1MehTGV4Fdr_dMEqZQp6SwO7E-A2oq5Hm',
+            'pert': '1_T2z0qeXuYFSzuvHwiXsE4ZemOFgDdV5'
         }
     }
 }
