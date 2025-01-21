@@ -28,13 +28,14 @@ from src.data.components import embeddings
 class PerturbData(Dataset):
     ctrl_expr_cache = None
 
-    def __init__(self, adata, data_path, spectral_parameter, spectra_params, fm, stage, **kwargs):
+    def __init__(self, adata, data_path, spectral_parameter, spectra_params, fm, tdc, stage, **kwargs):
         self.data_name = PurePath(data_path).parts[-1]
         self.data_path = data_path
         self.spectral_parameter = spectral_parameter
         self.spectra_params = spectra_params
         self.stage = stage
         self.fm = fm
+        self.tdc = tdc
         self.data_processor = None
         self.deg_dict = None
         self.basal_ctrl_adata = None
@@ -258,15 +259,19 @@ class PerturbData(Dataset):
             gene_to_ensg = dict(zip(self.genes, ensembl_ids))
 
         if self.fm != 'raw_expression':
-            # create embeddings folder if it does not exist
-            if not os.path.exists(f"{self.data_path}/embeddings"):
-                os.makedirs(f"{self.data_path}/embeddings", exist_ok=True)
+            if self.tdc:
+                # TODO: add TDC integration here (instead of downloading embeddings, we calculate them on the fly).
+                #  Note that we will need to do masking in-place here with the generated mask.
+                raise NotImplementedError("TDC integration is not yet implemented!")
+            else:
+                if not os.path.exists(f"{self.data_path}/embeddings"):
+                    os.makedirs(f"{self.data_path}/embeddings", exist_ok=True)
 
             # check the embeddings have been downloaded for the scFMs
             if not os.path.exists(f"{self.data_path}/embeddings/{self.data_name}_{self.fm}_fm_ctrl.pkl.gz"):
                 print(f"Downloading embeddings for {self.data_name} {self.fm} control data...")
                 # get file ID
-                if embeddings.embedding_links[self.fm][self.data_name]['ctrl'] is '':
+                if embeddings.embedding_links[self.fm][self.data_name]['ctrl'] == '':
                     raise NotImplementedError(f"Embeddings for {self.data_name} {self.fm} data are not yet "
                                               f"available")
                 file_id = embeddings.embedding_links[self.fm][self.data_name]['ctrl']

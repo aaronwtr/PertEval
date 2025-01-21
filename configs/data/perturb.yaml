@@ -12,5 +12,6 @@ split: 0.00
 replicate: 0
 eval_type: null # Has to be specified from experiment config
 fm: 'raw_expression'
+tdc: False
 num_workers: 0
 pin_memory: False
