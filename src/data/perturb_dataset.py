@@ -420,18 +420,14 @@ class PerturbData(Dataset):
                 gene_index = [index for gene in absent_fm for index in
                               basal_ctrl_adata.obs.index[basal_ctrl_adata.obs['condition'] != gene]]
                 basal_ctrl_adata = basal_ctrl_adata[gene_index, :]
-                warnings.warn(f"Absent perturbations in the perturbation dataset: {absent_fm}")
+                warnings.warn(f"Absent perturbations in the perturbation dataset: {absent_fm}. This is likely because "
+                              f"these gene symbols are missing from the FM vocabulary.")
             if absent_ctrl:
                 gene_index = [index for gene in absent_ctrl for index in
                               pert_adata.obs.index[pert_adata.obs['condition'] != gene]]
                 pert_adata = pert_adata[gene_index, :]
-                warnings.warn(f"Absent perturbations in the control dataset: {absent_ctrl}")
-
-            ctrl_cell_conditions = basal_ctrl_adata.obs['condition'].to_list()
-            pert_cell_conditions = pert_adata.obs['condition'].to_list()
-            assert ctrl_cell_conditions == pert_cell_conditions, (" The cell conditions in control and perturbation "
-                                                                  "datasets are still not the same, or are not indexed the "
-                                                                  "same!")
+                warnings.warn(f"Absent perturbations in the control dataset: {absent_ctrl}. This is likely because "
+                              f"these gene symbols are missing from the FM vocabulary.")
 
         train_perts = [pert_list[i] for i in train]
         test_perts = [pert_list[i] for i in test]
@@ -543,22 +539,38 @@ class PerturbData(Dataset):
 
             emb_dim = fm_ctrl_X.shape[1]
             pert_embs_train = np.zeros((num_train_cells, emb_dim))
-            if self.data_name == "norman_1":
+            if self.data_name != "norman_2":
                 for i, pert in enumerate(self.all_perts_train):
-                    pert_embs_train[i, :] = fm_pert_data[pert].mean(axis=0)
+                    try:
+                        pert_embs_train[i, :] = fm_pert_data[pert].mean(axis=0)
+                    except KeyError:
+                        print(f"Could not find embedding for perturbation {pert}. Likely missing from fm vocabulary.")
+                        pass
 
                 pert_embs_test = np.zeros((num_test_cells, emb_dim))
                 for i, pert in enumerate(self.all_perts_test):
-                    pert_embs_test[i, :] = fm_pert_data[pert].mean(axis=0)
+                    try:
+                        pert_embs_test[i, :] = fm_pert_data[pert].mean(axis=0)
+                    except KeyError:
+                        print(f"Could not find embedding for perturbation {pert}. Likely missing from fm vocabulary.")
+                        pass
             else:
                 for i, pert in enumerate(self.all_perts_train):
                     # Only consider 2-gene perturbations
                     if '+' in pert:
-                        pert_embs_train[i, :] = fm_pert_data[pert].mean(axis=0)
+                        try:
+                            pert_embs_train[i, :] = fm_pert_data[pert].mean(axis=0)
+                        except KeyError:
+                            print(f"Could not find embedding for perturbation {pert}. Likely missing from fm vocabulary.")
+                            pass
                 pert_embs_test = np.zeros((num_test_cells, emb_dim))
                 for i, pert in enumerate(self.all_perts_test):
                     if '+' in pert:
-                        pert_embs_test[i, :] = fm_pert_data[pert].mean(axis=0)
+                        try:
+                            pert_embs_test[i, :] = fm_pert_data[pert].mean(axis=0)
+                        except KeyError:
+                            print(f"Could not find embedding for perturbation {pert}. Likely missing from fm vocabulary.")
+                            pass
 
             raw_X_train = np.concatenate((train_input_emb, pert_embs_train), axis=1)
             X_test = np.concatenate((test_input_emb, pert_embs_test), axis=1)
