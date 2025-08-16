@@ -35,7 +35,7 @@ rich==13.7.1
 rootutils==1.0.7
 scanpy==1.10.0
 scipy==1.13.1
-setuptools==68.2.0
+setuptools==74.0.0
 tqdm==4.66.2
 gdown==5.2.0
 wandb===0.18.3
