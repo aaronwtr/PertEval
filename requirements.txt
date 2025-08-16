@@ -23,7 +23,7 @@ pre-commit      # hooks for applying linters on commit
 rich            # beautiful text formatting in terminal
 pytest          # tests
 anndata==0.10.6
-networkx==3.2.1
+networkx==3.3
 numpy==1.26.4
 numba==0.59.1
 omegaconf==2.3.0
