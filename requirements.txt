@@ -33,7 +33,7 @@ pertpy==0.7.0
 pytest==8.1.1
 rich==13.7.1
 rootutils==1.0.7
-scanpy==1.10.0
+scanpy==1.10.2
 scipy==1.13.1
 setuptools==68.2.0
 tqdm==4.66.2
